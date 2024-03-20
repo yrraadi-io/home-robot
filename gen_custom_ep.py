@@ -14,5 +14,5 @@ for episode in episodes:
 
 episodes_obj["episodes"] = episodes
 
-with open("data/datasets/ovmm/val/custom_episodes.json", "w") as outfile:
-    json.dump(episodes_obj, outfile, indent=4)
+with gzip.open("data/datasets/ovmm/val/custom_episodes.json.gz", "wt") as outfile:
+    json.dump(episodes_obj, outfile)
