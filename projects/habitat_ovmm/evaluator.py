@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import json
 import os
+import pdb
 import time
 from collections import defaultdict
 from enum import Enum
@@ -18,6 +19,8 @@ from tqdm import tqdm
 from utils.env_utils import create_ovmm_env_fn
 from utils.metrics_utils import get_stats_from_episode_metrics
 
+from home_robot.core.interfaces import DiscreteNavigationAction
+
 if TYPE_CHECKING:
     from habitat.core.dataset import BaseEpisode
     from habitat.core.vector_env import VectorEnv
@@ -26,12 +29,27 @@ if TYPE_CHECKING:
     from home_robot.core.abstract_agent import Agent
 
 
+def save_episode_data(data, filename):
+    """
+    Saves episode observation data to a JSON file.
+
+    Args:
+        data (list): A list of dictionaries, where each dictionary contains
+                     episode observation data with keys like "observations",
+                     "action", "hab_info", and "done".
+        filename (str): The name of the JSON file to save the data to.
+    """
+    with open(filename, "w") as outfile:
+        json.dump(data, outfile, indent=4)
+
+
 class EvaluationType(Enum):
     """Whether we run local or remote evaluation."""
 
     LOCAL = "local"
     LOCAL_VECTORIZED = "local_vectorized"
     REMOTE = "remote"
+    PRE_DET = "pre_det"
 
 
 class OVMMEvaluator(PPOTrainer):
@@ -42,6 +60,7 @@ class OVMMEvaluator(PPOTrainer):
         self.results_dir = os.path.join(
             eval_config.DUMP_LOCATION, "results", eval_config.EXP_NAME
         )
+
         self.videos_dir = eval_config.habitat_baselines.video_dir
         self.data_dir = data_dir
         if self.data_dir:
@@ -89,6 +108,20 @@ class OVMMEvaluator(PPOTrainer):
                 current_episode.scene_id.split("/")[-1].split(".")[0],
                 current_episode.episode_id,
             )
+
+    def _set_episode_dir(self, current_episode: "BaseEpisode"):
+        """
+        Sets episode_dir for storing episode data
+        """
+        scene_id = current_episode.scene_id.split("/")[-1].split(".")[0]
+        episode_id = current_episode.episode_id
+        self.episode_data_dir = os.path.join(
+            self.config.DUMP_LOCATION,
+            "episode_data",
+            self.config.EXP_NAME,
+            f"{scene_id}_{episode_id}",
+        )  # save episode data
+        os.makedirs(self.episode_data_dir, exist_ok=True)
 
     def _evaluate_vectorized(
         self,
@@ -232,6 +265,88 @@ class OVMMEvaluator(PPOTrainer):
         with open(f"{self.results_dir}/episode_results.json", "w") as f:
             json.dump(episode_metrics, f, indent=4)
 
+    def pre_det_evaluate(
+        self, agent: "Agent", num_episodes: Optional[int] = None
+    ) -> Dict[str, float]:
+        """
+        Evaluates the agent in the local environment with predetermined actions
+
+        :param agent: agent to be evaluated in environment.
+        :param num_episodes: count of number of episodes for which the evaluation should be run.
+        :return: dict containing metrics tracked by environment.
+        """
+        env_num_episodes = self._env.number_of_episodes
+        if num_episodes is None:
+            num_episodes = env_num_episodes
+        else:
+            assert num_episodes <= env_num_episodes, (
+                "num_episodes({}) is larger than number of episodes "
+                "in environment ({})".format(num_episodes, env_num_episodes)
+            )
+        assert num_episodes > 0, "num_episodes should be greater than 0"
+
+        episode_metrics: Dict = {}
+
+        count_episodes: int = 0
+
+        pbar = tqdm(total=num_episodes)
+        while count_episodes < num_episodes:
+            observations, done = self._env.reset(), False
+            current_episode = self._env.get_current_episode()
+            agent.reset()
+            self._set_episode_dir(current_episode)
+
+            with open(f"{self.episode_data_dir}/episode_data.json", "r") as file:
+                timestep_data = json.load(file)
+
+            current_episode_key = (
+                f"{current_episode.scene_id.split('/')[-1].split('.')[0]}_"
+                f"{current_episode.episode_id}"
+            )
+            current_episode_metrics = {}
+            obs_data = [observations]
+
+            done = False
+            i = 1
+            while not done:
+                _, info, _ = agent.act(observations)
+                action, done = (
+                    timestep_data[i]["action"],
+                    timestep_data[i]["done"],
+                )  # getting action and done status
+                # pdb.set_trace()
+                observations, _, hab_info = self._env.apply_action(
+                    DiscreteNavigationAction(action), info
+                )
+                i += 1
+
+            metrics = extract_scalars_from_info(hab_info)
+            metrics_at_episode_end = {"END." + k: v for k, v in metrics.items()}
+            current_episode_metrics = {
+                **metrics_at_episode_end,
+                **current_episode_metrics,
+            }
+            if "goal_name" in info:
+                current_episode_metrics["goal_name"] = info["goal_name"]
+
+            episode_metrics[current_episode_key] = current_episode_metrics
+            if len(episode_metrics) % self.metrics_save_freq == 0:
+                aggregated_metrics = self._aggregate_metrics(episode_metrics)
+                self._write_results(episode_metrics, aggregated_metrics)
+
+            count_episodes += 1
+            pbar.update(1)
+
+        self._env.close()
+
+        aggregated_metrics = self._aggregate_metrics(episode_metrics)
+        self._write_results(episode_metrics, aggregated_metrics)
+
+        average_metrics = self._summarize_metrics(episode_metrics)
+        self._print_summary(average_metrics)
+
+        return average_metrics
+
     def local_evaluate(
         self, agent: "Agent", num_episodes: Optional[int] = None
     ) -> Dict[str, float]:
@@ -264,6 +379,7 @@ class OVMMEvaluator(PPOTrainer):
             current_episode = self._env.get_current_episode()
             agent.reset()
             self._check_set_planner_vis_dir(agent, current_episode)
+            self._set_episode_dir(current_episode)
 
             current_episode_key = (
                 f"{current_episode.scene_id.split('/')[-1].split('.')[0]}_"
@@ -271,9 +387,23 @@ class OVMMEvaluator(PPOTrainer):
             )
             current_episode_metrics = {}
             obs_data = [observations]
+
+            episode_obs_data = {}  # sample data collection
+
             while not done:
                 action, info, _ = agent.act(observations)
-                observations, done, hab_info = self._env.apply_action(action, info)
+                (
+                    observations,
+                    done,
+                    hab_info,
+                    curr_pos,
+                    curr_rot,
+                ) = self._env.apply_action(action, info)
+                if done:
+                    episode_obs_data[current_episode.episode_id] = {
+                        "position": [curr_pos.x, curr_pos.y, curr_pos.z],
+                        "rotation": [curr_rot.x, curr_rot.y, curr_rot.z, curr_rot.w],
+                    }  # appending data for each episode
                 if self.data_dir:
                     obs_data.append(observations)
                 if "skill_done" in info and info["skill_done"] != "":
@@ -295,6 +425,10 @@ class OVMMEvaluator(PPOTrainer):
                 os.makedirs(data_episode_path, exist_ok=True)
                 with open(os.path.join(data_episode_path, "obs_data.pkl"), "wb") as f:
                     pickle.dump(obs_data, f)
+
+            save_episode_data(
+                episode_obs_data, f"{self.results_dir}/episode_final_coord.json"
+            )  # save episode data to a JSON file
 
             metrics = extract_scalars_from_info(hab_info)
             metrics_at_episode_end = {"END." + k: v for k, v in metrics.items()}
@@ -476,6 +610,9 @@ class OVMMEvaluator(PPOTrainer):
         elif evaluation_type == EvaluationType.REMOTE.value:
             self._env = None
             return self.remote_evaluate(agent, num_episodes)
+        elif evaluation_type == EvaluationType.PRE_DET.value:
+            self._env = create_ovmm_env_fn(self.config)
+            return self.pre_det_evaluate(agent, num_episodes)
         else:
             raise ValueError(
                 "Invalid evaluation type. Please choose from 'local', 'local_vectorized', 'remote'"

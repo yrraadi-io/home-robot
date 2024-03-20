@@ -62,6 +62,7 @@ class Visualizer:
         self.show_images = config.VISUALIZE
         self.print_images = config.PRINT_IMAGES
         self.default_vis_dir = f"{config.DUMP_LOCATION}/images/{config.EXP_NAME}"
+        self.default_episode_vis_dir = f"{config.DUMP_LOCATION}/episode_data/{config.EXP_NAME}"  # directory to save semantic maps
         self._dataset = dataset
         os.makedirs(self.default_vis_dir, exist_ok=True)
         if hasattr(config, "habitat"):  # hydra configs
@@ -159,6 +160,9 @@ class Visualizer:
     def set_vis_dir(self, scene_id: str, episode_id: str):
         self.print_images = True
         self.vis_dir = os.path.join(self.default_vis_dir, f"{scene_id}_{episode_id}")
+        self.episode_vis_dir = os.path.join(
+            self.default_episode_vis_dir, f"{scene_id}_{episode_id}"
+        )
         shutil.rmtree(self.vis_dir, ignore_errors=True)
         os.makedirs(self.vis_dir, exist_ok=True)
 
@@ -455,6 +459,8 @@ class Visualizer:
                 os.path.join(self.vis_dir, "snapshot_{:03d}.png".format(timestep)),
                 image_vis,
             )
+            # if semantic_map is not None:
+            #     cv2.imwrite(os.path.join(self.episode_vis_dir, "semantic_map_{:03d}.png".format(timestep)), semantic_map_vis) # saving the semantic map separately
 
     def _visualize_semantic_frame(
         self, image_vis: np.ndarray, semantic_frame: np.ndarray, palette: List

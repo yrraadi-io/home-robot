@@ -5,24 +5,24 @@ channels:
   - conda-forge
   - pyg
 dependencies:
-  - python==3.9.*
+  - python==3.9.18
   - cmake
   - pybind11
   - pytorch=1.13.1
   - pytorch-cuda=11.7
-  - pytorch3d
-  - torchvision
-  - torchaudio
-  - pyg
-  - pytorch-cluster
-  - pytorch-scatter
+  - pytorch3d==0.7.4
+  - torchvision==0.14.1
+  - torchaudio==0.13.1
+  - pyg==2.3.1
+  - pytorch-cluster==1.6.1
+  - pytorch-scatter==2.1.1
   - exa # optional: nice ls
   - fzf # optional: fancy ctrl + R
   - pip
   - pip:
     - numpy <1.24 # certain deprecated operations were used in other deps
     - scipy
-    - sophuspy
+    - sophuspy==0.0.8
     - pybullet
     - trimesh<4
     - pytest

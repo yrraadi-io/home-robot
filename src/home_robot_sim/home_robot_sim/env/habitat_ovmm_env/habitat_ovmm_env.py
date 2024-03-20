@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import pdb
 from enum import IntEnum
 from typing import Any, Dict, Optional, Union
 
@@ -101,6 +102,7 @@ class HabitatOpenVocabManipEnv(HabitatEnv):
         self._last_habitat_obs = None
 
     def get_current_episode(self):
+        # pdb.set_trace()
         if isinstance(self.habitat_env, GymHabitatEnv):
             return self.habitat_env.current_episode()
         else:
@@ -387,7 +389,9 @@ class HabitatOpenVocabManipEnv(HabitatEnv):
                 info["curr_action"] = DiscreteNavigationAction(action).name
             self._process_info(info)
         habitat_action = self._preprocess_action(action, self._last_habitat_obs)
-        habitat_obs, _, dones, infos = self.habitat_env.step(habitat_action)
+        habitat_obs, _, dones, infos, curr_pos, curr_rot = self.habitat_env.step(
+            habitat_action
+        )
         if info is not None:
             # copy the keys in info starting with the prefix "is_curr_skill" into infos
             for key in info:
@@ -395,4 +399,4 @@ class HabitatOpenVocabManipEnv(HabitatEnv):
                     infos[key] = info[key]
         self._last_habitat_obs = habitat_obs
         self._last_obs = self._preprocess_obs(habitat_obs)
-        return self._last_obs, dones, infos
+        return self._last_obs, dones, infos, curr_pos, curr_rot
