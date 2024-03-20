@@ -422,9 +422,10 @@ class OpenVocabManipAgent(ObjectNavAgent):
             )
         new_state = None
         if terminate:
-            action = None
+            # action = None
             # new_state = Skill.GAZE_AT_OBJ
-            new_state = Skill.FALL_WAIT
+            action = DiscreteNavigationAction.STOP
+            new_state = None
         return action, info, new_state
 
     def _gaze_at_obj(
