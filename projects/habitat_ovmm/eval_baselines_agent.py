@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--evaluation_type",
         type=str,
-        choices=["local", "local_vectorized", "remote"],
+        choices=["local", "local_vectorized", "remote", "confirm"],
         default="local",
     )
     parser.add_argument("--num_episodes", type=int, default=None)

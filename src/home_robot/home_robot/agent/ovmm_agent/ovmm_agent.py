@@ -31,6 +31,7 @@ class Skill(IntEnum):
     EXPLORE = auto()
     NAV_TO_INSTANCE = auto()
     FALL_WAIT = auto()
+    CONFIRM_OBJ = auto()
 
 
 class SemanticVocab(IntEnum):
@@ -55,6 +56,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
         self.pick_start_step = None
         self.gaze_at_obj_start_step = None
         self.fall_wait_start_step = None
+        self.confirm_obj_start_step = None
         self.is_gaze_done = None
         self.place_done = None
         self.gaze_agent = None
@@ -185,12 +187,17 @@ class OpenVocabManipAgent(ObjectNavAgent):
             self.place_agent.reset_vectorized()
         if self.nav_to_rec_agent is not None:
             self.nav_to_rec_agent.reset_vectorized()
-        self.states = torch.tensor([Skill.NAV_TO_OBJ] * self.num_environments)
+        self.states = torch.tensor(
+            [Skill.CONFIRM_OBJ] * self.num_environments
+        )  # setting initial skill to confirm object
         self.pick_start_step = torch.tensor([0] * self.num_environments)
         self.gaze_at_obj_start_step = torch.tensor([0] * self.num_environments)
         self.place_start_step = torch.tensor([0] * self.num_environments)
         self.gaze_at_obj_start_step = torch.tensor([0] * self.num_environments)
         self.fall_wait_start_step = torch.tensor([0] * self.num_environments)
+        self.confirm_obj_start_step = torch.tensor(
+            [0] * self.num_environments
+        )  # limiting the steps we try to confirm the object for
         self.is_gaze_done = torch.tensor([0] * self.num_environments)
         self.place_done = torch.tensor([0] * self.num_environments)
         if self.place_policy is not None:
@@ -208,6 +215,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
         self.pick_start_step[e] = 0
         self.gaze_at_obj_start_step[e] = 0
         self.fall_wait_start_step[e] = 0
+        self.confirm_obj_start_step[e] = 0
         self.is_gaze_done[e] = 0
         self.place_done[e] = 0
         if self.place_policy is not None:
@@ -256,6 +264,8 @@ class OpenVocabManipAgent(ObjectNavAgent):
         if next_skill == Skill.NAV_TO_OBJ:
             # action = DiscreteNavigationAction.NAVIGATION_MODE
             pass
+        elif next_skill == Skill.CONFIRM_OBJ:
+            pass  # passing since it's the first skill for now
         elif next_skill == Skill.GAZE_AT_OBJ:
             if not self.store_all_categories_in_map:
                 self._set_semantic_vocab(SemanticVocab.SIMPLE, force_set=False)
@@ -553,6 +563,20 @@ class OpenVocabManipAgent(ObjectNavAgent):
             action = DiscreteNavigationAction.STOP
         return action, info, None
 
+    def _confirm_obj(
+        self, obs: Observations, info: Dict[str, Any]
+    ) -> Tuple[DiscreteNavigationAction, Any, Optional[Skill]]:
+        """Our heuristic method to confirm object detections"""
+        confirm_obj_wait_steps = self.timesteps[0] - self.confirm_obj_start_step[0]
+        if confirm_obj_wait_steps < 10:
+            if confirm_obj_wait_steps % 3 == 0:
+                action = DiscreteNavigationAction.MOVE_FORWARD
+            else:
+                action = DiscreteNavigationAction.EMPTY_ACTION
+        else:
+            action = DiscreteNavigationAction.STOP
+        return action, info, None
+
     def act(
         self, obs: Observations
     ) -> Tuple[DiscreteNavigationAction, Dict[str, Any], Observations]:
@@ -594,6 +618,9 @@ class OpenVocabManipAgent(ObjectNavAgent):
             elif self.states[0] == Skill.FALL_WAIT:
                 print(f"step: {self.timesteps[0]} -- fall wait")
                 action, info, new_state = self._fall_wait(obs, info)
+            elif self.states[0] == Skill.CONFIRM_OBJ:
+                print(f"step: {self.timesteps[0]} -- confirm object")
+                action, info, new_state = self._confirm_obj(obs, info)
             else:
                 raise ValueError
 

@@ -49,7 +49,7 @@ class EvaluationType(Enum):
     LOCAL = "local"
     LOCAL_VECTORIZED = "local_vectorized"
     REMOTE = "remote"
-    PRE_DET = "pre_det"
+    CONF = "confirm"  # for our heuristic object observation strategy
 
 
 class OVMMEvaluator(PPOTrainer):
@@ -265,11 +265,11 @@ class OVMMEvaluator(PPOTrainer):
         with open(f"{self.results_dir}/episode_results.json", "w") as f:
             json.dump(episode_metrics, f, indent=4)
 
-    def pre_det_evaluate(
+    def confirm_evaluate(
         self, agent: "Agent", num_episodes: Optional[int] = None
     ) -> Dict[str, float]:
         """
-        Evaluates the agent in the local environment with predetermined actions
+        Evaluates the agent in the local environment with our heuristic object observation strategy
 
         :param agent: agent to be evaluated in environment.
         :param num_episodes: count of number of episodes for which the evaluation should be run.
@@ -283,6 +283,7 @@ class OVMMEvaluator(PPOTrainer):
                 "num_episodes({}) is larger than number of episodes "
                 "in environment ({})".format(num_episodes, env_num_episodes)
             )
+
         assert num_episodes > 0, "num_episodes should be greater than 0"
 
         episode_metrics: Dict = {}
@@ -294,10 +295,8 @@ class OVMMEvaluator(PPOTrainer):
             observations, done = self._env.reset(), False
             current_episode = self._env.get_current_episode()
             agent.reset()
+            self._check_set_planner_vis_dir(agent, current_episode)
             self._set_episode_dir(current_episode)
-
-            with open(f"{self.episode_data_dir}/episode_data.json", "r") as file:
-                timestep_data = json.load(file)
 
             current_episode_key = (
                 f"{current_episode.scene_id.split('/')[-1].split('.')[0]}_"
@@ -306,19 +305,29 @@ class OVMMEvaluator(PPOTrainer):
             current_episode_metrics = {}
             obs_data = [observations]
 
-            done = False
-            i = 1
             while not done:
-                _, info, _ = agent.act(observations)
-                action, done = (
-                    timestep_data[i]["action"],
-                    timestep_data[i]["done"],
-                )  # getting action and done status
-                # pdb.set_trace()
-                observations, _, hab_info = self._env.apply_action(
-                    DiscreteNavigationAction(action), info
-                )
-                i += 1
+                action, info, _ = agent.act(observations)
+                (
+                    observations,
+                    done,
+                    hab_info,
+                    _,
+                    _,
+                ) = self._env.apply_action(action, info)
+
+                if self.data_dir:
+                    obs_data.append(observations)
+                if "skill_done" in info and info["skill_done"] != "":
+                    metrics = extract_scalars_from_info(hab_info)
+                    metrics_at_skill_end = {
+                        f"{info['skill_done']}." + k: v for k, v in metrics.items()
+                    }
+                    current_episode_metrics = {
+                        **metrics_at_skill_end,
+                        **current_episode_metrics,
+                    }
+                    if "goal_name" in info:
+                        current_episode_metrics["goal_name"] = info["goal_name"]
 
             metrics = extract_scalars_from_info(hab_info)
             metrics_at_episode_end = {"END." + k: v for k, v in metrics.items()}
@@ -610,9 +619,9 @@ class OVMMEvaluator(PPOTrainer):
         elif evaluation_type == EvaluationType.REMOTE.value:
             self._env = None
             return self.remote_evaluate(agent, num_episodes)
-        elif evaluation_type == EvaluationType.PRE_DET.value:
+        elif evaluation_type == EvaluationType.CONF.value:
             self._env = create_ovmm_env_fn(self.config)
-            return self.pre_det_evaluate(agent, num_episodes)
+            return self.confirm_evaluate(agent, num_episodes)
         else:
             raise ValueError(
                 "Invalid evaluation type. Please choose from 'local', 'local_vectorized', 'remote'"
