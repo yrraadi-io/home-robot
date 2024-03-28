@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import pdb
 from datetime import datetime
 from enum import IntEnum, auto
 from typing import Any, Dict, Optional, Tuple
@@ -137,7 +138,6 @@ class OpenVocabManipAgent(ObjectNavAgent):
     def _get_info(self, obs: Observations) -> Dict[str, torch.Tensor]:
         """Get inputs for visual skill."""
         use_detic_viz = self.config.ENVIRONMENT.use_detic_viz
-
         if self.config.GROUND_TRUTH_SEMANTICS == 1:
             semantic_category_mapping = None  # Visualizer handles mapping
         elif self.semantic_sensor.current_vocabulary_id == SemanticVocab.SIMPLE:
@@ -157,9 +157,16 @@ class OpenVocabManipAgent(ObjectNavAgent):
             semantic_frame = np.concatenate(
                 [obs.rgb, obs.semantic[:, :, np.newaxis]], axis=2
             ).astype(np.uint8)
+        gt_frame = None
+        if self.config.GROUND_TRUTH_SEMANTICS == 0:
+            gt_frame = np.concatenate(
+                [obs.rgb, obs.gt_semantic[:, :, np.newaxis]], axis=2
+            ).astype(np.uint8)
+
         goal_name = obs.task_observations["goal_name"]
         info = {
             "semantic_frame": semantic_frame,
+            "gt_frame": gt_frame,
             "semantic_category_mapping": semantic_category_mapping,
             "goal_name": goal_name,
             "third_person_image": obs.third_person_image,
@@ -188,7 +195,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
         if self.nav_to_rec_agent is not None:
             self.nav_to_rec_agent.reset_vectorized()
         self.states = torch.tensor(
-            [Skill.CONFIRM_OBJ] * self.num_environments
+            [Skill.NAV_TO_OBJ] * self.num_environments
         )  # setting initial skill to confirm object
         self.pick_start_step = torch.tensor([0] * self.num_environments)
         self.gaze_at_obj_start_step = torch.tensor([0] * self.num_environments)

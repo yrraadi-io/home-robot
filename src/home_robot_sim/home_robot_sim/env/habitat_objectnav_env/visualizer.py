@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import json
 import os
+import pdb
 import shutil
 from collections import defaultdict
 from typing import List, Optional
@@ -120,6 +121,24 @@ class Visualizer:
                 self.semantic_category_mapping = RearrangeDETICCategories(
                     self.obj_rec_combined_mapping
                 )
+            else:
+                self.obj_rec_combined_mapping = {}
+                obj_id_to_name_mapping = {0: "goal_object"}
+                for i in range(
+                    len(obj_id_to_name_mapping) + len(self._rec_id_to_name_mapping)
+                ):
+                    if i < len(obj_id_to_name_mapping):
+                        self.obj_rec_combined_mapping[i + 1] = obj_id_to_name_mapping[i]
+                    else:
+                        self.obj_rec_combined_mapping[
+                            i + 1
+                        ] = self._rec_id_to_name_mapping[
+                            i - len(obj_id_to_name_mapping)
+                        ]
+
+                self.gt_semantic_category_mapping = RearrangeDETICCategories(
+                    self.obj_rec_combined_mapping
+                )
 
         self.vis_dir = None
         self.image_vis = None
@@ -168,6 +187,34 @@ class Visualizer:
 
     def disable_print_images(self):
         self.print_images = False
+
+    def get_semantic_vis_gt(self, semantic_map, palette, rgb_frame=None):
+        semantic_map_vis = Image.new(
+            "P", (semantic_map.shape[1], semantic_map.shape[0])
+        )
+        semantic_map_vis.putpalette(palette)
+        semantic_map_vis.putdata(semantic_map.flatten().astype(np.uint8))
+
+        if rgb_frame is not None:
+            # overlaying semantics on RGB frame
+            rgb_frame = rgb_frame[:, :, [2, 1, 0]]
+            mask = np.array(semantic_map_vis)
+            mask = (
+                mask
+                == self.gt_semantic_category_mapping.num_sem_categories
+                - 1
+                + PI.SEM_START
+            ).astype(np.uint8) * 255
+            mask = Image.fromarray(mask)
+            rgb_pil = Image.fromarray(rgb_frame)
+            semantic_map_vis = semantic_map_vis.convert("RGB")
+            semantic_map_vis.paste(rgb_pil, mask=mask)
+        else:
+            semantic_map_vis = semantic_map_vis.convert("RGB")
+
+        semantic_map_vis = np.asarray(semantic_map_vis)[:, :, [2, 1, 0]]
+
+        return semantic_map_vis
 
     def get_semantic_vis(self, semantic_map, palette, rgb_frame=None):
         semantic_map_vis = Image.new(
@@ -247,6 +294,7 @@ class Visualizer:
         self,
         timestep: int,
         semantic_frame: np.ndarray = None,
+        gt_frame: np.ndarray = None,
         obstacle_map: np.ndarray = None,
         goal_map: np.ndarray = None,
         closest_goal_map: Optional[np.ndarray] = None,
@@ -297,7 +345,6 @@ class Visualizer:
         # Do nothing if visualization is off
         if not self.show_images and not self.print_images:
             return
-
         if semantic_category_mapping is not None:
             self.semantic_category_mapping = semantic_category_mapping
 
@@ -330,6 +377,7 @@ class Visualizer:
             self.set_map_params(semantic_map_config)
 
         palette = self.semantic_category_mapping.map_color_palette.copy()
+        gt_palette = self.gt_semantic_category_mapping.map_color_palette.copy()
 
         if obstacle_map is not None:
             curr_x, curr_y, curr_o, gy1, gy2, gx1, gx2 = sensor_pose
@@ -449,6 +497,8 @@ class Visualizer:
             image_vis = self._visualize_semantic_frame(
                 image_vis, semantic_frame, palette
             )
+        if gt_frame is not None:
+            image_vis = self._visualize_gt_frame(image_vis, gt_frame, gt_palette)
         if instance_memory is not None:
             image_vis = self._visualize_instance_counts(image_vis, instance_memory)
         if self.show_images:
@@ -459,8 +509,13 @@ class Visualizer:
                 os.path.join(self.vis_dir, "snapshot_{:03d}.png".format(timestep)),
                 image_vis,
             )
-            # if semantic_map is not None:
-            #     cv2.imwrite(os.path.join(self.episode_vis_dir, "semantic_map_{:03d}.png".format(timestep)), semantic_map_vis) # saving the semantic map separately
+            if semantic_map is not None:
+                cv2.imwrite(
+                    os.path.join(
+                        self.episode_vis_dir, "semantic_map_{:03d}.png".format(timestep)
+                    ),
+                    semantic_map_vis,
+                )  # saving the semantic map separately
 
     def _visualize_semantic_frame(
         self, image_vis: np.ndarray, semantic_frame: np.ndarray, palette: List
@@ -477,9 +532,9 @@ class Visualizer:
             image_vis (np.ndarray): complete image panel
         """
         rgb_frame = semantic_frame[:, :, [2, 1, 0]]
-        image_vis[V.Y1 : V.Y2, V.FIRST_RGB_X1 : V.FIRST_RGB_X2] = cv2.resize(
-            rgb_frame, (V.FIRST_PERSON_W, V.HEIGHT)
-        )
+        # image_vis[V.Y1 : V.Y2, V.FIRST_RGB_X1 : V.FIRST_RGB_X2] = cv2.resize(
+        #     rgb_frame, (V.FIRST_PERSON_W, V.HEIGHT)
+        # )
         if semantic_frame.shape[2] > 3:
             # Semantic categories
             first_person_semantic_map_vis = self.get_semantic_vis(
@@ -487,6 +542,37 @@ class Visualizer:
             )
             # First-person semantic frame
             image_vis[V.Y1 : V.Y2, V.FIRST_SEM_X1 : V.FIRST_SEM_X2] = cv2.resize(
+                first_person_semantic_map_vis,
+                (V.FIRST_PERSON_W, V.HEIGHT),
+                interpolation=cv2.INTER_NEAREST,
+            )
+        return image_vis
+
+    def _visualize_gt_frame(
+        self, image_vis: np.ndarray, gt_frame: np.ndarray, gt_palette: List
+    ):
+        """
+        Add GT frame to the panel
+
+        Args:
+            image_vis (np.ndarray): complete image panel
+            semantic_frame (np.ndarray): egocentric semantic frame
+            palette (List): list of rgb colors of size [#colors * 3]
+
+        Returns:
+            image_vis (np.ndarray): complete image panel
+        """
+        rgb_frame = gt_frame[:, :, [2, 1, 0]]
+        # image_vis[V.Y1 : V.Y2, V.FIRST_RGB_X1 : V.FIRST_RGB_X2] = cv2.resize(
+        #     rgb_frame, (V.FIRST_PERSON_W, V.HEIGHT)
+        # )
+        if gt_frame.shape[2] > 3:
+            # Semantic categories
+            first_person_semantic_map_vis = self.get_semantic_vis_gt(
+                gt_frame[:, :, 3] + PI.SEM_START, gt_palette, rgb_frame
+            )
+            # First-person semantic frame
+            image_vis[V.Y1 : V.Y2, V.FIRST_RGB_X1 : V.FIRST_RGB_X2] = cv2.resize(
                 first_person_semantic_map_vis,
                 (V.FIRST_PERSON_W, V.HEIGHT),
                 interpolation=cv2.INTER_NEAREST,

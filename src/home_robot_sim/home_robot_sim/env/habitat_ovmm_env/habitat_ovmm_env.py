@@ -217,6 +217,31 @@ class HabitatOpenVocabManipEnv(HabitatEnv):
             obs.task_observations["semantic_max_val"] = (
                 len(self._rec_id_to_name_mapping) + obj_categories_in_seg + 1
             )
+        else:
+            if "all_object_segmentation" in habitat_obs:
+                gt_semantic = torch.from_numpy(
+                    habitat_obs["all_object_segmentation"].squeeze(-1).astype(np.int64)
+                )
+                obj_categories_in_seg = len(self._obj_id_to_name_mapping)
+            else:
+                gt_semantic = torch.from_numpy(
+                    habitat_obs["object_segmentation"].squeeze(-1).astype(np.int64)
+                )
+                obj_categories_in_seg = 1
+            recep_seg = (
+                habitat_obs["receptacle_segmentation"].squeeze(-1).astype(np.int64)
+            )
+            recep_seg[recep_seg != 0] += obj_categories_in_seg
+            recep_seg = torch.from_numpy(recep_seg)
+            gt_semantic = gt_semantic + recep_seg
+            gt_semantic[gt_semantic == 0] = (
+                len(self._rec_id_to_name_mapping) + obj_categories_in_seg + 1
+            )
+            obs.gt_semantic = gt_semantic.numpy()
+            # obs.gt_task_observations["recep_idx"] = 1 + obj_categories_in_seg
+            # obs.gt_task_observations["semantic_max_val"] = (
+            #     len(self._rec_id_to_name_mapping) + obj_categories_in_seg + 1
+            # )
         return obs
 
     def _preprocess_depth(self, depth: np.array) -> np.array:

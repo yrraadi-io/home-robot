@@ -7,7 +7,7 @@ store_all_categories: False  # whether to store all semantic categories in the m
 detection_module: detic # the detector to use for perception in case ground_truth_semantics are turned off
 
 VISION:
-  confidence_threshold: 0.25 # detic object detection confidence threshold
+  confidence_threshold: 0.45 # detic object detection confidence threshold
 
 SEMANTIC_MAP:
   semantic_categories: rearrange # map semantic channel categories ("coco_indoor", "longtail_indoor", "mukul_indoor", "rearrange")
