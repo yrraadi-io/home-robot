@@ -218,9 +218,7 @@ class Observations:
     semantic: Optional[
         np.array
     ] = None  # (camera_height, camera_width) in [0, num_sem_categories - 1]
-    gt_semantic: Optional[
-        np.array
-    ] = None  # (camera_height, camera_width) in [0, num_sem_categories - 1]
+    gt_semantic: Optional[np.array] = None
     camera_K: Optional[np.ndarray] = None  # (3, 3) camera intrinsics matrix
 
     # Instance IDs per observation frame

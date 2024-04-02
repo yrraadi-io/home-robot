@@ -488,8 +488,12 @@ rearrange_3categories_padded = (
     ["."] + [rearrange_3categories_indexes[i] for i in range(1, 4)] + ["other"]
 )
 
+# rearrange_3categories_legend_path = str(
+#     Path(__file__).resolve().parent / "rearrange_3categories_legend.png"
+# )
+
 rearrange_3categories_legend_path = str(
-    Path(__file__).resolve().parent / "rearrange_3categories_legend.png"
+    Path(__file__).resolve().parent / "ovmm_legend.png"
 )
 
 rearrange_3categories_color_palette = [255, 255, 255] + list(

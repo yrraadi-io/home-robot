@@ -435,9 +435,9 @@ class OVMMEvaluator(PPOTrainer):
                 with open(os.path.join(data_episode_path, "obs_data.pkl"), "wb") as f:
                     pickle.dump(obs_data, f)
 
-            # save_episode_data(
-            #     episode_obs_data, f"{self.results_dir}/episode_final_coord.json"
-            # )  # save episode data to a JSON file
+            save_episode_data(
+                episode_obs_data, f"{self.results_dir}/episode_final_coord.json"
+            )  # save episode data to a JSON file
 
             metrics = extract_scalars_from_info(hab_info)
             metrics_at_episode_end = {"END." + k: v for k, v in metrics.items()}
