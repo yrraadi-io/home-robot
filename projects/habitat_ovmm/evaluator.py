@@ -380,6 +380,8 @@ class OVMMEvaluator(PPOTrainer):
 
         episode_metrics: Dict = {}
 
+        episode_obs_data = {}  # sample data collection
+
         count_episodes: int = 0
 
         pbar = tqdm(total=num_episodes)
@@ -396,8 +398,6 @@ class OVMMEvaluator(PPOTrainer):
             )
             current_episode_metrics = {}
             obs_data = [observations]
-
-            episode_obs_data = {}  # sample data collection
 
             while not done:
                 action, info, _ = agent.act(observations)
@@ -435,10 +435,6 @@ class OVMMEvaluator(PPOTrainer):
                 with open(os.path.join(data_episode_path, "obs_data.pkl"), "wb") as f:
                     pickle.dump(obs_data, f)
 
-            save_episode_data(
-                episode_obs_data, f"{self.results_dir}/episode_final_coord.json"
-            )  # save episode data to a JSON file
-
             metrics = extract_scalars_from_info(hab_info)
             metrics_at_episode_end = {"END." + k: v for k, v in metrics.items()}
             current_episode_metrics = {
@@ -455,6 +451,10 @@ class OVMMEvaluator(PPOTrainer):
 
             count_episodes += 1
             pbar.update(1)
+
+        save_episode_data(
+            episode_obs_data, f"{self.results_dir}/episode_final_coord.json"
+        )  # save episode data to a JSON file
 
         self._env.close()
 
