@@ -42,7 +42,10 @@ if __name__ == "__main__":
     with open("datadump/results/eval_hssd/episode_final_coord.json", "r") as file:
         episodes = json.load(file)
     episode_ids = list(episodes.keys())
-    base_image_dir = "datadump/images/eval_hssd/"  # Base directory to search in
+    base_image_dir = "datadump/episode_vis/eval_hssd/"  # Base directory to search in
+
+    base_vid_dir = "datadump/episode_vid/eval_hssd/"  # base video directory
+    os.makedirs(base_vid_dir)
 
     for episode_id in episode_ids:
         # Search for matching folder
@@ -50,7 +53,7 @@ if __name__ == "__main__":
             if folder.endswith("_" + episode_id):
                 image_dir = os.path.join(base_image_dir, folder)
                 output_video = os.path.join(
-                    base_image_dir, "video_" + episode_id + ".mp4"
+                    base_vid_dir, "video_" + episode_id + ".mp4"
                 )
                 convert_images_to_video(image_dir, output_video)
                 break  # Move on to the next episode_id once the folder is found
