@@ -425,7 +425,9 @@ class ObjectNavAgent(Agent):
         dilated_obstacle_map = None
         if planner_inputs[0]["found_goal"]:
             self.episode_panorama_start_steps = 0
-        if self.timesteps[0] < self.episode_panorama_start_steps:
+            print("Goal found")
+            action = DiscreteNavigationAction.STOP  # stop when goal is found
+        elif self.timesteps[0] < self.episode_panorama_start_steps:
             action = DiscreteNavigationAction.TURN_RIGHT
         elif self.timesteps[0] > self.max_steps:
             action = DiscreteNavigationAction.STOP

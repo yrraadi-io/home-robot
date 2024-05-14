@@ -62,8 +62,8 @@ class Visualizer:
     def __init__(self, config, dataset=None):
         self.show_images = config.VISUALIZE
         self.print_images = config.PRINT_IMAGES
-        self.default_vis_dir = f"{config.DUMP_LOCATION}/images/{config.EXP_NAME}"
-        self.default_episode_vis_dir = f"{config.DUMP_LOCATION}/episode_data/{config.EXP_NAME}"  # directory to save semantic maps
+        self.default_vis_dir = f"{config.DUMP_LOCATION}/episode_vis/{config.EXP_NAME}"
+        self.default_episode_vis_dir = f"{config.DUMP_LOCATION}/episode_map/{config.EXP_NAME}"  # directory to save semantic maps
         self._dataset = dataset
         os.makedirs(self.default_vis_dir, exist_ok=True)
         if hasattr(config, "habitat"):  # hydra configs
