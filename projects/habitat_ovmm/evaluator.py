@@ -292,7 +292,7 @@ class OVMMEvaluator(PPOTrainer):
 
         pbar = tqdm(total=num_episodes)
         while count_episodes < num_episodes:
-            observations, done = self._env.reset(), False
+            observations, done = self._env.reset(evaluation_type="confirm"), False
             current_episode = self._env.get_current_episode()
             agent.reset()
             self._check_set_planner_vis_dir(agent, current_episode)
@@ -311,8 +311,8 @@ class OVMMEvaluator(PPOTrainer):
                     observations,
                     done,
                     hab_info,
-                    _,
-                    _,
+                    curr_pos,
+                    curr_rot,
                 ) = self._env.apply_action(action, info)
 
                 if self.data_dir:
@@ -411,7 +411,7 @@ class OVMMEvaluator(PPOTrainer):
                 if done:
                     episode_obs_data[current_episode.episode_id] = {
                         "position": [curr_pos.x, curr_pos.y, curr_pos.z],
-                        "rotation": [curr_rot.x, curr_rot.y, curr_rot.z, curr_rot.w],
+                        "rotation": [curr_rot.x, -curr_rot.y, curr_rot.z, curr_rot.w],
                     }  # appending data for each episode
                 if self.data_dir:
                     obs_data.append(observations)

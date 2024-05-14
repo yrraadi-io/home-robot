@@ -50,7 +50,7 @@ def get_skill_as_one_hot_dict(curr_skill: Skill):
 class OpenVocabManipAgent(ObjectNavAgent):
     """Simple object nav agent based on a 2D semantic map."""
 
-    def __init__(self, config, device_id: int = 0):
+    def __init__(self, config, device_id: int = 0, evaluation_type: str = "local"):
         super().__init__(config, device_id=device_id)
         self.states = None
         self.place_start_step = None
@@ -68,6 +68,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
         self.pick_policy = None
         self.place_policy = None
         self.semantic_sensor = None
+        self.evaluation_type = evaluation_type
 
         if config.GROUND_TRUTH_SEMANTICS == 1 and self.store_all_categories_in_map:
             # currently we get ground truth semantics of only the target object category and all scene receptacles from the simulator
@@ -194,9 +195,13 @@ class OpenVocabManipAgent(ObjectNavAgent):
             self.place_agent.reset_vectorized()
         if self.nav_to_rec_agent is not None:
             self.nav_to_rec_agent.reset_vectorized()
-        self.states = torch.tensor(
-            [Skill.NAV_TO_OBJ] * self.num_environments
-        )  # setting initial skill to confirm object
+
+        # controlling start state for our custom skill
+        if self.evaluation_type == "local":
+            self.states = torch.tensor([Skill.NAV_TO_OBJ] * self.num_environments)
+        else:
+            self.states = torch.tensor([Skill.CONFIRM_OBJ] * self.num_environments)
+
         self.pick_start_step = torch.tensor([0] * self.num_environments)
         self.gaze_at_obj_start_step = torch.tensor([0] * self.num_environments)
         self.place_start_step = torch.tensor([0] * self.num_environments)
@@ -576,10 +581,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
         """Our heuristic method to confirm object detections"""
         confirm_obj_wait_steps = self.timesteps[0] - self.confirm_obj_start_step[0]
         if confirm_obj_wait_steps < 10:
-            if confirm_obj_wait_steps % 3 == 0:
-                action = DiscreteNavigationAction.MOVE_FORWARD
-            else:
-                action = DiscreteNavigationAction.EMPTY_ACTION
+            action = DiscreteNavigationAction.EMPTY_ACTION
         else:
             action = DiscreteNavigationAction.STOP
         return action, info, None

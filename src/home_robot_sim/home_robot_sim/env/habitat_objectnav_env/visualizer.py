@@ -63,7 +63,9 @@ class Visualizer:
         self.show_images = config.VISUALIZE
         self.print_images = config.PRINT_IMAGES
         self.default_vis_dir = f"{config.DUMP_LOCATION}/episode_vis/{config.EXP_NAME}"
+        self.confirm_vis_dir = f"{config.DUMP_LOCATION}/confirm_vis/{config.EXP_NAME}"
         self.default_episode_vis_dir = f"{config.DUMP_LOCATION}/episode_map/{config.EXP_NAME}"  # directory to save semantic maps
+        self.default_episode_confirm_vis_dir = f"{config.DUMP_LOCATION}/confirm_map/{config.EXP_NAME}"  # directory to save semantic maps
         self._dataset = dataset
         os.makedirs(self.default_vis_dir, exist_ok=True)
         if hasattr(config, "habitat"):  # hydra configs
@@ -176,12 +178,27 @@ class Visualizer:
         self.visited_map_vis = None
         self.last_xy = None
 
-    def set_vis_dir(self, scene_id: str, episode_id: str):
+    def set_vis_dir(
+        self, scene_id: str, episode_id: str, evaluation_type: Optional[str] = None
+    ):
         self.print_images = True
-        self.vis_dir = os.path.join(self.default_vis_dir, f"{scene_id}_{episode_id}")
-        self.episode_vis_dir = os.path.join(
-            self.default_episode_vis_dir, f"{scene_id}_{episode_id}"
-        )
+
+        # choose the directory based on the evaluation type
+        if evaluation_type is None:
+            self.vis_dir = os.path.join(
+                self.default_vis_dir, f"{scene_id}_{episode_id}"
+            )
+            self.episode_vis_dir = os.path.join(
+                self.default_episode_vis_dir, f"{scene_id}_{episode_id}"
+            )
+        else:
+            self.vis_dir = os.path.join(
+                self.confirm_vis_dir, f"{scene_id}_{episode_id}"
+            )
+            self.episode_vis_dir = os.path.join(
+                self.default_episode_confirm_vis_dir, f"{scene_id}_{episode_id}"
+            )
+
         shutil.rmtree(self.vis_dir, ignore_errors=True)
         os.makedirs(self.vis_dir, exist_ok=True)
 

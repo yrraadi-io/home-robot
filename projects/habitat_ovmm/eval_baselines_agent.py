@@ -105,7 +105,9 @@ if __name__ == "__main__":
     elif args.agent_type == "explore":
         agent = OVMMExplorationAgent(agent_config, device_id=device_id, args=args)
     else:
-        agent = OpenVocabManipAgent(agent_config, device_id=device_id)
+        agent = OpenVocabManipAgent(
+            agent_config, device_id=device_id, evaluation_type=args.evaluation_type
+        )
 
     # create evaluator
     evaluator = OVMMEvaluator(env_config, data_dir=args.data_dir)

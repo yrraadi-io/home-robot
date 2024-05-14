@@ -108,18 +108,20 @@ class HabitatOpenVocabManipEnv(HabitatEnv):
         else:
             return self.habitat_env.current_episode
 
-    def set_vis_dir(self):
+    def set_vis_dir(self, evaluation_type: Optional[str] = None):
         scene_id = self.get_current_episode().scene_id.split("/")[-1].split(".")[0]
         episode_id = self.get_current_episode().episode_id
-        self.visualizer.set_vis_dir(scene_id=scene_id, episode_id=episode_id)
+        self.visualizer.set_vis_dir(
+            scene_id=scene_id, episode_id=episode_id, evaluation_type=evaluation_type
+        )
 
-    def reset(self):
+    def reset(self, evaluation_type: Optional[str] = None):
         habitat_obs = self.habitat_env.reset()
         self._last_habitat_obs = habitat_obs
         self._last_obs = self._preprocess_obs(habitat_obs)
         if self.visualize:
             self.visualizer.reset()
-            self.set_vis_dir()
+            self.set_vis_dir(evaluation_type=evaluation_type)
         return self._last_obs
 
     def convert_pose_to_real_world_axis(self, hab_pose):
