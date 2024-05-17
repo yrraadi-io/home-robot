@@ -97,6 +97,13 @@ class SparseVoxelMap(object):
         use_instance_memory (bool): Whether to create object-centric instance memory.
     """
 
+    # semantic feature categories
+    EMPTY_SPACE = 0
+    OBSTACLES = 1
+    EXPLORED = 2
+    VISITED = 3
+    CLOSEST_GOAL = 4
+
     DEFAULT_INSTANCE_MAP_KWARGS = dict(
         du_scale=1,
         instance_association="bbox_iou",
@@ -818,6 +825,11 @@ class SparseVoxelMap(object):
         points, _, _, rgb = self.voxel_pcd.get_pointcloud()
         return points, rgb
 
+    def get_features(self) -> torch.Tensor:
+        """Return features of the current map"""
+        _, features, _, _ = self.voxel_pcd.get_pointcloud()
+        return features
+
     def _show_pytorch3d(
         self, instances: bool = True, mock_plot: bool = False, **plot_scene_kwargs
     ):
@@ -826,19 +838,49 @@ class SparseVoxelMap(object):
         from home_robot.utils.bboxes_3d_plotly import plot_scene_with_bboxes
 
         points, rgb = self.get_xyz_rgb()
+        features = self.get_features()
+
+        # Create a mask for CLOSEST_GOAL points
+        closest_goal_mask = (features != self.CLOSEST_GOAL).squeeze()
+
+        # Separate points and colors into closest goal and others
+        closest_goal_points = points[closest_goal_mask]
+        closest_goal_colors = torch.tensor([1.0, 0.0, 0.0]).repeat(
+            closest_goal_points.shape[0], 1
+        )  # Red
 
         traces = {}
 
         # Show points
         ptc = None
+        cg_ptc = None
         if points is None and mock_plot:
             ptc = Pointclouds(
                 points=[torch.zeros((2, 3))], features=[torch.zeros((2, 3))]
             )
         elif points is not None:
             ptc = Pointclouds(points=[points], features=[rgb])
-        if ptc is not None:
-            traces["Points"] = ptc
+            cg_ptc = Pointclouds(
+                points=[closest_goal_points], features=[closest_goal_colors]
+            )
+
+        # Combine original points and closest goal points
+        if ptc is not None and cg_ptc is not None:
+            combined_points = torch.cat(
+                [ptc.points_padded()[0], cg_ptc.points_padded()[0]], dim=0
+            )
+            combined_colors = torch.cat(
+                [ptc.features_padded()[0], cg_ptc.features_padded()[0]], dim=0
+            )
+            combined_ptc = Pointclouds(
+                points=[combined_points], features=[combined_colors]
+            )
+            traces["Combined Points"] = combined_ptc
+
+        # if cg_ptc is not None:
+        #     traces["Closest Goal"] = cg_ptc
+        # if ptc is not None:
+        #     traces["Original Points"] = ptc
 
         # Show instances
         if instances:

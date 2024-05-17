@@ -583,7 +583,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
     ) -> Tuple[DiscreteNavigationAction, Any, Optional[Skill]]:
         """Our heuristic method to confirm object detections"""
         confirm_obj_wait_steps = self.timesteps[0] - self.confirm_obj_start_step[0]
-        if confirm_obj_wait_steps < 10:
+        if confirm_obj_wait_steps < 1:
             action = DiscreteNavigationAction.EMPTY_ACTION
         else:
             action = DiscreteNavigationAction.STOP

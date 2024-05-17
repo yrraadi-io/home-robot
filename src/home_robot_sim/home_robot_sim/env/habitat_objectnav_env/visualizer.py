@@ -244,11 +244,11 @@ class Visualizer:
             # overlaying semantics on RGB frame
             rgb_frame = rgb_frame[:, :, [2, 1, 0]]
             mask = np.array(semantic_map_vis)
+
             mask = (
                 mask
                 == self.semantic_category_mapping.num_sem_categories - 1 + PI.SEM_START
             ).astype(np.uint8) * 255
-            # pdb.set_trace()
             mask = Image.fromarray(mask)
             rgb_pil = Image.fromarray(rgb_frame)
             semantic_map_vis = semantic_map_vis.convert("RGB")
