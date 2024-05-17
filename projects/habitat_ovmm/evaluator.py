@@ -19,6 +19,10 @@ from tqdm import tqdm
 from utils.env_utils import create_ovmm_env_fn
 from utils.metrics_utils import get_stats_from_episode_metrics
 
+# voxel map imports
+from home_robot.agent.multitask.custom_sparse_voxel_map_agent import (
+    CustomSparseVoxelMapAgent,
+)
 from home_robot.core.interfaces import DiscreteNavigationAction
 
 if TYPE_CHECKING:
@@ -305,8 +309,14 @@ class OVMMEvaluator(PPOTrainer):
             current_episode_metrics = {}
             obs_data = [observations]
 
+            custom_sparse_voxel_map_agent = CustomSparseVoxelMapAgent()
+
             while not done:
+                # determine action
                 action, info, _ = agent.act(observations)
+                # update custom sparse voxel map agent
+                custom_sparse_voxel_map_agent.step(obs=observations)
+                # apply the action
                 (
                     observations,
                     done,
@@ -314,6 +324,11 @@ class OVMMEvaluator(PPOTrainer):
                     curr_pos,
                     curr_rot,
                 ) = self._env.apply_action(action, info)
+
+                # visualize custom sparse voxel map if done
+                if done:
+                    voxel_fig = custom_sparse_voxel_map_agent.show()
+                    voxel_fig.show()
 
                 if self.data_dir:
                     obs_data.append(observations)

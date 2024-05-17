@@ -2,10 +2,9 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
-
 import argparse
 import pathlib
+import pdb
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -209,7 +208,6 @@ class DeticPerception(PerceptionModule):
             obs.task_observations["semantic_frame"]: segmentation visualization
              image of shape (H, W, 3)
         """
-
         if isinstance(obs.rgb, torch.Tensor):
             rgb = obs.rgb.numpy()
         elif isinstance(obs.rgb, np.ndarray):

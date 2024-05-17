@@ -7,6 +7,7 @@
     This file contains a torch implementation and helpers of a
     "voxelized pointcloud" that stores features, centroids, and counts in a sparse voxel grid
 """
+import pdb
 from typing import List, Optional, Tuple, Union
 
 import cv2
@@ -37,7 +38,7 @@ class VoxelizedPointcloud:
         voxel_size: float = 0.05,
         dim_mins: Optional[Tensor] = None,
         dim_maxs: Optional[Tensor] = None,
-        feature_pool_method: str = "mean",
+        feature_pool_method: str = "max",
     ):
         """
 
@@ -152,7 +153,7 @@ class VoxelizedPointcloud:
             features=all_features,
             weights=all_weights,
             rgbs=all_rgb,
-            feature_reduce=self.feature_pool_method,
+            feature_reduce="max",
         )
         return
 

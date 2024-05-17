@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import copy
 import logging
+import pdb
 import pickle
 from collections import namedtuple
 from pathlib import Path
@@ -329,6 +330,14 @@ class SparseVoxelMap(object):
             rgb = torch.from_numpy(rgb)
         if isinstance(camera_pose, np.ndarray):
             camera_pose = torch.from_numpy(camera_pose)
+        if isinstance(depth, np.ndarray):
+            depth = torch.from_numpy(depth)
+        if isinstance(camera_K, np.ndarray):
+            camera_K = torch.from_numpy(camera_K)
+        if isinstance(obs.instance, np.ndarray):
+            instance_image = torch.from_numpy(obs.instance)
+        if isinstance(feats, np.ndarray):
+            feats = torch.from_numpy(feats)
         if self.use_instance_memory:
             assert rgb.ndim == 3, f"{rgb.ndim=}: must be 3 if using instance memory"
             H, W, _ = rgb.shape
@@ -418,7 +427,8 @@ class SparseVoxelMap(object):
         # filter depth
         valid_depth = torch.full_like(rgb[:, 0], fill_value=True, dtype=torch.bool)
         if depth is not None:
-            valid_depth = (depth > self.min_depth) & (depth < self.max_depth)
+            # valid_depth = (depth > self.min_depth) & (depth < self.max_depth)
+            valid_depth = depth >= 0.0
 
         # Add instance views to memory
         if self.use_instance_memory:
@@ -447,6 +457,7 @@ class SparseVoxelMap(object):
 
         # TODO: weights could also be confidence, inv distance from camera, etc
         if world_xyz.nelement() > 0:
+            feats = feats.view(-1, 1)
             self.voxel_pcd.add(world_xyz, features=feats, rgb=rgb, weights=None)
 
         # TODO: just get this from camera_pose?
@@ -835,6 +846,7 @@ class SparseVoxelMap(object):
                 bounds, names = zip(
                     *[(v.bounds, v.category_id) for v in self.get_instances()]
                 )
+                names = [torch.tensor(name, dtype=torch.long) for name in names]
                 detected_boxes = BBoxes3D(
                     bounds=[torch.stack(bounds, dim=0)],
                     # At some point we can color the boxes according to class, but that's not implemented yet

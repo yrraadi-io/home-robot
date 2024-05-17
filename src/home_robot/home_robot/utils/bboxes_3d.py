@@ -1024,8 +1024,8 @@ def box3d_overlap_from_bounds(bounds1: Tensor, bounds2: Tensor, eps=1e-4):
         vol: [N, M] volume of intersection
         iou: [N, M] intersection over union
     """
-    corners1 = get_box_verts_from_bounds(bounds1)
-    corners2 = get_box_verts_from_bounds(bounds2)
+    corners1 = get_box_verts_from_bounds(bounds1).float()
+    corners2 = get_box_verts_from_bounds(bounds2).float()
     return box3d_overlap(corners1, corners2, eps=eps)
 
 
