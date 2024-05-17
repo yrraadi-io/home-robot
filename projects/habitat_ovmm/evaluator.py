@@ -328,7 +328,16 @@ class OVMMEvaluator(PPOTrainer):
                 # visualize custom sparse voxel map if done
                 if done:
                     voxel_fig = custom_sparse_voxel_map_agent.show()
-                    voxel_fig.show()
+                    # Save to results directory
+                    try:
+                        output_file = os.path.join(
+                            self.results_dir, f"voxel_map_{current_episode_key}.html"
+                        )  # Include episode key in the filename
+                        voxel_fig.write_html(
+                            output_file, include_plotlyjs="cdn"
+                        )  # Save with Plotly.js for offline viewing
+                    except Exception as e:
+                        print(f"Error saving voxel map: {e}")
 
                 if self.data_dir:
                     obs_data.append(observations)
