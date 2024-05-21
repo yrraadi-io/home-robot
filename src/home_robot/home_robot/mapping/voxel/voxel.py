@@ -865,33 +865,37 @@ class SparseVoxelMap(object):
             ptc = Pointclouds(
                 points=[torch.zeros((2, 3))], features=[torch.zeros((2, 3))]
             )
-        elif points is not None:
-            ptc = Pointclouds(points=[points], features=[rgb])
-            cgobj_ptc = Pointclouds(
-                points=[closest_goal_obj_points], features=[closest_goal_obj_colors]
-            )
-            csrec_ptc = Pointclouds(
-                points=[closest_start_rec_points], features=[closest_start_rec_colors]
-            )
+        else:
+            if points is not None:
+                ptc = Pointclouds(points=[points], features=[rgb])
+            if closest_goal_obj_points.numel() != 0:
+                cgobj_ptc = Pointclouds(
+                    points=[closest_goal_obj_points], features=[closest_goal_obj_colors]
+                )
+            if closest_start_rec_points.numel() != 0:
+                csrec_ptc = Pointclouds(
+                    points=[closest_start_rec_points],
+                    features=[closest_start_rec_colors],
+                )
 
         # Combine original points and closest goal points
-        if ptc is not None and cgobj_ptc is not None and csrec_ptc is not None:
-            combined_points = torch.cat(
-                [
-                    ptc.points_padded()[0],
-                    cgobj_ptc.points_padded()[0],
-                    csrec_ptc.points_padded()[0],
-                ],
-                dim=0,
-            )
-            combined_colors = torch.cat(
-                [
-                    ptc.features_padded()[0],
-                    cgobj_ptc.features_padded()[0],
-                    csrec_ptc.features_padded()[0],
-                ],
-                dim=0,
-            )
+        points_list = []
+        colors_list = []
+
+        if ptc is not None:
+            points_list.append(ptc.points_padded()[0])
+            colors_list.append(ptc.features_padded()[0])
+        if cgobj_ptc is not None:
+            points_list.append(cgobj_ptc.points_padded()[0])
+            colors_list.append(cgobj_ptc.features_padded()[0])
+        if csrec_ptc is not None:
+            points_list.append(csrec_ptc.points_padded()[0])
+            colors_list.append(csrec_ptc.features_padded()[0])
+
+        # Combine only if there are valid points and colors
+        if points_list and colors_list:
+            combined_points = torch.cat(points_list, dim=0)
+            combined_colors = torch.cat(colors_list, dim=0)
             combined_ptc = Pointclouds(
                 points=[combined_points], features=[combined_colors]
             )
