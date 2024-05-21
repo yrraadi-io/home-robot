@@ -454,7 +454,6 @@ class SparseVoxelMap(object):
                 encoder=self.encoder,
             )
             self.instances.associate_instances_to_memory()
-
         # Add to voxel grid
         if feats is not None:
             feats = feats[valid_depth].reshape(-1, feats.shape[-1])
@@ -463,7 +462,7 @@ class SparseVoxelMap(object):
 
         # TODO: weights could also be confidence, inv distance from camera, etc
         if world_xyz.nelement() > 0:
-            feats = feats.view(-1, 1)
+            # feats = feats.view(-1, 1)
             self.voxel_pcd.add(world_xyz, features=feats, rgb=rgb, weights=None)
 
         # TODO: just get this from camera_pose?
@@ -840,7 +839,7 @@ class SparseVoxelMap(object):
         features = self.get_features()
 
         # Create a mask for GOAL_OBJ points
-        closest_goal_obj_mask = (features == self.GOAL_OBJ).squeeze()
+        closest_goal_obj_mask = (features[:, 1] == self.GOAL_OBJ).squeeze()
         # Separate points and colors into closest goal
         closest_goal_obj_points = points[closest_goal_obj_mask]
         closest_goal_obj_colors = torch.tensor([0.678, 0.847, 0.902]).repeat(
@@ -848,7 +847,7 @@ class SparseVoxelMap(object):
         )  # Blue
 
         # Create a mask for START_REC points
-        closest_start_rec_mask = (features == self.START_REC).squeeze()
+        closest_start_rec_mask = (features[:, 0] == self.START_REC).squeeze()
         # Separate points and colors into start rec
         closest_start_rec_points = points[closest_start_rec_mask]
         closest_start_rec_colors = torch.tensor([1.0, 0.498, 0.314]).repeat(

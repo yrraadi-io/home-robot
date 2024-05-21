@@ -165,7 +165,9 @@ class OpenVocabManipAgent(ObjectNavAgent):
             ).astype(np.uint8)
 
         # setting features as the semantic_frame for voxel labelling
-        obs.task_observations["features"] = semantic_frame[:, :, 3]
+        obs.task_observations["features"] = np.stack(
+            [semantic_frame[:, :, 3], gt_frame[:, :, 3]], axis=-1
+        )
         goal_name = obs.task_observations["goal_name"]
         info = {
             "semantic_frame": semantic_frame,
