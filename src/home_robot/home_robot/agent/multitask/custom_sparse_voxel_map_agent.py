@@ -50,7 +50,7 @@ class CustomSparseVoxelMapAgent:
         semantic_sensor: Optional[OvmmPerception] = None,
         voxel_map: Optional[SparseVoxelMap] = SparseVoxelMap(feature_dim=1),
         visualize_planner=False,
-        device="cuda",
+        device="cpu",
         cache_dir: Optional[Union[Path, str]] = None,
     ):
         self.device = device

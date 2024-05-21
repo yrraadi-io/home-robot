@@ -98,11 +98,10 @@ class SparseVoxelMap(object):
     """
 
     # semantic feature categories
-    EMPTY_SPACE = 0
-    OBSTACLES = 1
-    EXPLORED = 2
-    VISITED = 3
-    CLOSEST_GOAL = 4
+    GOAL_OBJ = 1
+    START_REC = 2
+    END_REC = 3
+    EMPTY = 4
 
     DEFAULT_INSTANCE_MAP_KWARGS = dict(
         du_scale=1,
@@ -840,47 +839,63 @@ class SparseVoxelMap(object):
         points, rgb = self.get_xyz_rgb()
         features = self.get_features()
 
-        # Create a mask for CLOSEST_GOAL points
-        closest_goal_mask = (features != self.CLOSEST_GOAL).squeeze()
+        # Create a mask for GOAL_OBJ points
+        closest_goal_obj_mask = (features == self.GOAL_OBJ).squeeze()
+        # Separate points and colors into closest goal
+        closest_goal_obj_points = points[closest_goal_obj_mask]
+        closest_goal_obj_colors = torch.tensor([0.678, 0.847, 0.902]).repeat(
+            closest_goal_obj_points.shape[0], 1
+        )  # Blue
 
-        # Separate points and colors into closest goal and others
-        closest_goal_points = points[closest_goal_mask]
-        closest_goal_colors = torch.tensor([1.0, 0.0, 0.0]).repeat(
-            closest_goal_points.shape[0], 1
-        )  # Red
+        # Create a mask for START_REC points
+        closest_start_rec_mask = (features == self.START_REC).squeeze()
+        # Separate points and colors into start rec
+        closest_start_rec_points = points[closest_start_rec_mask]
+        closest_start_rec_colors = torch.tensor([1.0, 0.498, 0.314]).repeat(
+            closest_start_rec_points.shape[0], 1
+        )  # Orange
 
         traces = {}
 
         # Show points
         ptc = None
-        cg_ptc = None
+        cgobj_ptc = None
+        csrec_ptc = None
         if points is None and mock_plot:
             ptc = Pointclouds(
                 points=[torch.zeros((2, 3))], features=[torch.zeros((2, 3))]
             )
         elif points is not None:
             ptc = Pointclouds(points=[points], features=[rgb])
-            cg_ptc = Pointclouds(
-                points=[closest_goal_points], features=[closest_goal_colors]
+            cgobj_ptc = Pointclouds(
+                points=[closest_goal_obj_points], features=[closest_goal_obj_colors]
+            )
+            csrec_ptc = Pointclouds(
+                points=[closest_start_rec_points], features=[closest_start_rec_colors]
             )
 
         # Combine original points and closest goal points
-        if ptc is not None and cg_ptc is not None:
+        if ptc is not None and cgobj_ptc is not None and csrec_ptc is not None:
             combined_points = torch.cat(
-                [ptc.points_padded()[0], cg_ptc.points_padded()[0]], dim=0
+                [
+                    ptc.points_padded()[0],
+                    cgobj_ptc.points_padded()[0],
+                    csrec_ptc.points_padded()[0],
+                ],
+                dim=0,
             )
             combined_colors = torch.cat(
-                [ptc.features_padded()[0], cg_ptc.features_padded()[0]], dim=0
+                [
+                    ptc.features_padded()[0],
+                    cgobj_ptc.features_padded()[0],
+                    csrec_ptc.features_padded()[0],
+                ],
+                dim=0,
             )
             combined_ptc = Pointclouds(
                 points=[combined_points], features=[combined_colors]
             )
-            traces["Combined Points"] = combined_ptc
-
-        # if cg_ptc is not None:
-        #     traces["Closest Goal"] = cg_ptc
-        # if ptc is not None:
-        #     traces["Original Points"] = ptc
+            traces["Points"] = combined_ptc
 
         # Show instances
         if instances:
