@@ -82,3 +82,8 @@ projects/habitat_ovmm/configs/agent/generated/*
 
 # Emacs
 *~
+src/home_robot/home_robot/agent/imagenav_agent/SuperGluePretrainedNetwork
+src/home_robot/home_robot/perception/detection/detic/Detic
+src/third_party/contact_graspnet
+src/third_party/detectron2
+src/third_party/habitat-lab
