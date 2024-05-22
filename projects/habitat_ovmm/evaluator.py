@@ -338,6 +338,9 @@ class OVMMEvaluator(PPOTrainer):
                         )  # Save with Plotly.js for offline viewing
                     except Exception as e:
                         print(f"Error saving voxel map: {e}")
+                    # calculate IoU
+                    iou = custom_sparse_voxel_map_agent.evaluate_iou()
+                    print(f"IoU: {iou}")
 
                 if self.data_dir:
                     obs_data.append(observations)

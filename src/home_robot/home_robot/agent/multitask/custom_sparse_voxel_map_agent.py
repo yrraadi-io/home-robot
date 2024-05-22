@@ -214,3 +214,21 @@ class CustomSparseVoxelMapAgent:
             # ),
             backend="pytorch3d",
         )
+
+    ##############################################
+    # IoU calculation
+    ##############################################
+    def evaluate_iou(self):
+        """Get ground truth features, predicted features and calculate IoU"""
+        # Capture features
+        features = self.voxel_map.get_features()
+        predicted_mask = features[:, 0] == 1
+        gt_mask = features[:, 1] == 1
+
+        # calculate IoU
+        intersection = torch.logical_and(gt_mask, predicted_mask).sum().item()
+        union = torch.logical_or(gt_mask, predicted_mask).sum().item()
+
+        # Handle potential division by zero
+        iou = intersection / union if union > 0 else 0.0
+        return iou

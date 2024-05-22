@@ -839,7 +839,7 @@ class SparseVoxelMap(object):
         features = self.get_features()
 
         # Create a mask for GOAL_OBJ points
-        closest_goal_obj_mask = (features[:, 1] == self.GOAL_OBJ).squeeze()
+        closest_goal_obj_mask = (features[:, 0] == self.GOAL_OBJ).squeeze()
         # Separate points and colors into closest goal
         closest_goal_obj_points = points[closest_goal_obj_mask]
         closest_goal_obj_colors = torch.tensor([0.678, 0.847, 0.902]).repeat(
