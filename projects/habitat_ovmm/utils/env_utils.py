@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from habitat import make_dataset
 from habitat.core.environments import get_env_class
@@ -18,7 +18,9 @@ if TYPE_CHECKING:
     from omegaconf import DictConfig
 
 
-def create_ovmm_env_fn(config: "DictConfig") -> HabitatOpenVocabManipEnv:
+def create_ovmm_env_fn(
+    config: "DictConfig", evaluation_type: Optional[str] = None
+) -> HabitatOpenVocabManipEnv:
     """
     Creates an environment for the OVMM task.
 
@@ -33,5 +35,7 @@ def create_ovmm_env_fn(config: "DictConfig") -> HabitatOpenVocabManipEnv:
     env_class = get_env_class(env_class_name)
     habitat_env = env_class(config=habitat_config, dataset=dataset)
     habitat_env.seed(habitat_config.seed)
-    env = HabitatOpenVocabManipEnv(habitat_env, config, dataset=dataset)
+    env = HabitatOpenVocabManipEnv(
+        habitat_env, config, dataset=dataset, evaluation_type=evaluation_type
+    )
     return env

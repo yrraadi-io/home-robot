@@ -647,7 +647,7 @@ class OVMMEvaluator(PPOTrainer):
             self._env = None
             return self.remote_evaluate(agent, num_episodes)
         elif evaluation_type == EvaluationType.CONF.value:
-            self._env = create_ovmm_env_fn(self.config)
+            self._env = create_ovmm_env_fn(self.config, EvaluationType.CONF.value)
             return self.confirm_evaluate(agent, num_episodes)
         else:
             raise ValueError(

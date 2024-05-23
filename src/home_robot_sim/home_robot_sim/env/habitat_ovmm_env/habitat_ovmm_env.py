@@ -54,7 +54,13 @@ class SimJointActionIndex(IntEnum):
 class HabitatOpenVocabManipEnv(HabitatEnv):
     joints_dof = 7
 
-    def __init__(self, habitat_env: habitat.core.env.Env, config, dataset):
+    def __init__(
+        self,
+        habitat_env: habitat.core.env.Env,
+        config,
+        dataset,
+        evaluation_type: Optional[str] = None,
+    ):
         super().__init__(habitat_env)
         self.min_depth = config.ENVIRONMENT.min_depth
         self.max_depth = config.ENVIRONMENT.max_depth
@@ -64,8 +70,10 @@ class HabitatOpenVocabManipEnv(HabitatEnv):
         self.camera = None
         if self.visualize:
             self.visualizer = Visualizer(config, dataset)
-
-        self.episodes_data_path = config.habitat.dataset.data_path
+        if evaluation_type == "confirm":
+            self.episodes_data_path = config.habitat.dataset.custom_data_path
+        else:
+            self.episodes_data_path = config.habitat.dataset.data_path
         self.video_dir = config.habitat_baselines.video_dir
         self.max_forward = (
             config.habitat.task.actions.base_velocity.max_displacement_along_axis
