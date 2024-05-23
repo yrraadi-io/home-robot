@@ -10,6 +10,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from habitat_baselines.rl.ppo.ppo_trainer import PPOTrainer
@@ -294,6 +295,8 @@ class OVMMEvaluator(PPOTrainer):
 
         count_episodes: int = 0
 
+        all_iou = []  # maintain iou for all episodes for graphing
+
         pbar = tqdm(total=num_episodes)
         while count_episodes < num_episodes:
             observations, done = self._env.reset(evaluation_type="confirm"), False
@@ -340,7 +343,7 @@ class OVMMEvaluator(PPOTrainer):
                         print(f"Error saving voxel map: {e}")
                     # calculate IoU
                     iou = custom_sparse_voxel_map_agent.evaluate_iou()
-                    print(f"IoU: {iou}")
+                    all_iou.append(iou)
 
                 if self.data_dir:
                     obs_data.append(observations)
@@ -380,6 +383,19 @@ class OVMMEvaluator(PPOTrainer):
 
         average_metrics = self._summarize_metrics(episode_metrics)
         self._print_summary(average_metrics)
+
+        # create iou histogram
+        iou_array = np.array(all_iou)
+        plt.hist(iou_array, bins=10, range=(0, 1), edgecolor="black")
+        # Customize the plot (optional)
+        plt.xlabel("IoU")
+        plt.ylabel("Frequency")
+        plt.title("Distribution of Point Cloud IoU")
+        plt.grid(axis="y", alpha=0.5)
+        # Save histogram
+        output_plot_file = os.path.join(self.results_dir, "iou_histogram.png")
+        plt.savefig(output_plot_file)
+        plt.close()
 
         return average_metrics
 
@@ -647,7 +663,7 @@ class OVMMEvaluator(PPOTrainer):
             self._env = None
             return self.remote_evaluate(agent, num_episodes)
         elif evaluation_type == EvaluationType.CONF.value:
-            self._env = create_ovmm_env_fn(self.config, EvaluationType.CONF.value)
+            self._env = create_ovmm_env_fn(self.config)
             return self.confirm_evaluate(agent, num_episodes)
         else:
             raise ValueError(
