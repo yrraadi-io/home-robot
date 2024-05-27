@@ -295,6 +295,7 @@ class OVMMEvaluator(PPOTrainer):
 
         count_episodes: int = 0
 
+        custom_sparse_voxel_map_agent = CustomSparseVoxelMapAgent()
         all_iou = []  # maintain iou for all episodes for graphing
 
         pbar = tqdm(total=num_episodes)
@@ -311,8 +312,6 @@ class OVMMEvaluator(PPOTrainer):
             )
             current_episode_metrics = {}
             obs_data = [observations]
-
-            custom_sparse_voxel_map_agent = CustomSparseVoxelMapAgent()
 
             while not done:
                 # determine action
@@ -343,6 +342,7 @@ class OVMMEvaluator(PPOTrainer):
                         print(f"Error saving voxel map: {e}")
                     # calculate IoU
                     iou = custom_sparse_voxel_map_agent.evaluate_iou()
+                    print(f"Episode ID: {current_episode.episode_id}, IoU: {iou}")
                     all_iou.append(iou)
 
                 if self.data_dir:
@@ -359,6 +359,7 @@ class OVMMEvaluator(PPOTrainer):
                     if "goal_name" in info:
                         current_episode_metrics["goal_name"] = info["goal_name"]
 
+            custom_sparse_voxel_map_agent.reset() # reset the voxel map agent
             metrics = extract_scalars_from_info(hab_info)
             metrics_at_episode_end = {"END." + k: v for k, v in metrics.items()}
             current_episode_metrics = {
@@ -385,6 +386,7 @@ class OVMMEvaluator(PPOTrainer):
         self._print_summary(average_metrics)
 
         # create iou histogram
+        print(all_iou)
         iou_array = np.array(all_iou)
         plt.hist(iou_array, bins=10, range=(0, 1), edgecolor="black")
         # Customize the plot (optional)
