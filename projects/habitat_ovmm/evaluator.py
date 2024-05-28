@@ -344,6 +344,8 @@ class OVMMEvaluator(PPOTrainer):
                     iou = custom_sparse_voxel_map_agent.evaluate_iou()
                     print(f"Episode ID: {current_episode.episode_id}, IoU: {iou}")
                     all_iou.append(iou)
+                    # export positive and negative label count
+                    custom_sparse_voxel_map_agent.export_voxel_labels_to_json(f"{self.results_dir}/voxel_labels_{current_episode_key}.json")
 
                 if self.data_dir:
                     obs_data.append(observations)
@@ -457,6 +459,7 @@ class OVMMEvaluator(PPOTrainer):
                     episode_obs_data[current_episode.episode_id] = {
                         "position": [curr_pos.x, curr_pos.y, curr_pos.z],
                         "rotation": [curr_rot.x, -curr_rot.y, curr_rot.z, curr_rot.w],
+                        "found_goal": info["found_goal"],
                     }  # appending data for each episode
                 if self.data_dir:
                     obs_data.append(observations)

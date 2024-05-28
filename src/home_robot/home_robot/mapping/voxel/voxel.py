@@ -827,6 +827,9 @@ class SparseVoxelMap(object):
         """Return features of the current map"""
         _, features, _, _ = self.voxel_pcd.get_pointcloud()
         return features
+    
+    def get_voxelized_pointcloud(self) -> VoxelizedPointcloud:
+        return self.voxel_pcd
 
     def _show_pytorch3d(
         self, instances: bool = True, mock_plot: bool = False, **plot_scene_kwargs

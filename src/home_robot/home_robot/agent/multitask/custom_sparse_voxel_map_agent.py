@@ -5,6 +5,7 @@
 """
 Creates a CustomSparseVoxelMap of a scene and evaluates it on that scene
 """
+import json
 import logging
 from enum import IntEnum, auto
 from pathlib import Path
@@ -232,3 +233,11 @@ class CustomSparseVoxelMapAgent:
         # Handle potential division by zero
         iou = intersection / union if union > 0 else 0.0
         return iou
+    
+    ##############################################
+    # Logging and debugging
+    ##############################################
+    def export_voxel_labels_to_json(self, filename: str):
+        voxel_pcd = self.voxel_map.get_voxelized_pointcloud()
+        with open(filename, 'w') as f:
+            json.dump(voxel_pcd._voxel_labels, f, indent=4)

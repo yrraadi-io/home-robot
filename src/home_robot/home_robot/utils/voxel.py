@@ -8,6 +8,7 @@
     "voxelized pointcloud" that stores features, centroids, and counts in a sparse voxel grid
 """
 import pdb
+from collections import defaultdict
 from typing import List, Optional, Tuple, Union
 
 import cv2
@@ -29,6 +30,7 @@ class VoxelizedPointcloud:
         "dim_maxs",
         "_mins",
         "_maxs",
+        "_voxel_labels"
     ]
 
     _INIT_ARGS = ["voxel_size", "dim_mins", "dim_maxs", "feature_pool_method"]
@@ -64,7 +66,7 @@ class VoxelizedPointcloud:
 
     def reset(self):
         """Resets internal tensors"""
-        self._points, self._features, self._weights, self._rgb = None, None, None, None
+        self._points, self._features, self._weights, self._rgb, self._voxel_labels = None, None, None, None, None
         self._mins = self.dim_mins
         self._maxs = self.dim_maxs
 
@@ -139,6 +141,11 @@ class VoxelizedPointcloud:
                 else None
             )
             all_rgb = torch.cat([self._rgb, rgb], dim=0) if (rgb is not None) else None
+            
+        # Check if _positive_labels and _negative_labels are None and initialize them if they are
+        if self._voxel_labels is None:
+            self._voxel_labels = defaultdict(lambda: {"pos": 0, "neg": 0})
+            
         # Future optimization:
         # If there are no new voxels, then we could save a bit of compute time
         # by only recomputing the voxel/cluster for the new points
@@ -155,6 +162,28 @@ class VoxelizedPointcloud:
             rgbs=all_rgb,
             feature_reduce="max",
         )
+        
+        # Get Voxel Indices
+        voxel_indices = self.get_voxel_idx(self._points)
+
+        # Update Counts
+        voxel_labels_update = defaultdict(lambda: {"pos": 0, "neg": 0})
+        
+        # Collect updates
+        for i, voxel_idx in enumerate(voxel_indices):
+            voxel_id = voxel_idx.item()
+            feature_value = self._features[i][0].item()  # Accessing the first attribute of the feature
+
+            if feature_value == 1:
+                voxel_labels_update[voxel_id]["pos"] += 1
+            else:
+                voxel_labels_update[voxel_id]["neg"] += 1
+        
+        # Apply updates in a batch
+        for voxel_id, counts in voxel_labels_update.items():
+            self._voxel_labels[voxel_id]["pos"] += counts["pos"]
+            self._voxel_labels[voxel_id]["neg"] += counts["neg"]
+            
         return
 
     def get_idxs(self, points: Tensor) -> Tensor:
