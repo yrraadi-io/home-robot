@@ -7,7 +7,7 @@
     This file contains a torch implementation and helpers of a
     "voxelized pointcloud" that stores features, centroids, and counts in a sparse voxel grid
 """
-import pdb
+# import pdb
 from collections import defaultdict
 from typing import List, Optional, Tuple, Union
 
@@ -165,24 +165,42 @@ class VoxelizedPointcloud:
         
         # Get Voxel Indices
         voxel_indices = self.get_voxel_idx(self._points)
-
-        # Update Counts
-        voxel_labels_update = defaultdict(lambda: {"pos": 0, "neg": 0})
         
-        # Collect updates
-        for i, voxel_idx in enumerate(voxel_indices):
-            voxel_id = voxel_idx.item()
-            feature_value = self._features[i][0].item()  # Accessing the first attribute of the feature
-
-            if feature_value == 1:
-                voxel_labels_update[voxel_id]["pos"] += 1
-            else:
-                voxel_labels_update[voxel_id]["neg"] += 1
+        # Vectorized Update Counts
+        feature_values = self._features[:, 0]  # Accessing the first attribute of the feature
+        positive_mask = feature_values == 1
+        negative_mask = ~positive_mask
         
-        # Apply updates in a batch
-        for voxel_id, counts in voxel_labels_update.items():
-            self._voxel_labels[voxel_id]["pos"] += counts["pos"]
-            self._voxel_labels[voxel_id]["neg"] += counts["neg"]
+        # Get unique voxel ids and an inverse mapping
+        unique_voxel_ids, inverse_indices = voxel_indices.unique(return_inverse=True)
+        
+        # Count positive and negative labels for each unique voxel
+        pos_counts = scatter(positive_mask.float(), inverse_indices, dim=0, reduce="sum").cpu().numpy()
+        neg_counts = scatter(negative_mask.float(), inverse_indices, dim=0, reduce="sum").cpu().numpy()
+
+        # Update the dictionary with counts
+        for i, voxel_id in enumerate(unique_voxel_ids):
+            voxel_id = voxel_id.item()
+            self._voxel_labels[voxel_id]["pos"] += pos_counts[i]
+            self._voxel_labels[voxel_id]["neg"] += neg_counts[i]
+
+        # # Update Counts
+        # voxel_labels_update = defaultdict(lambda: {"pos": 0, "neg": 0})
+        
+        # # Collect updates
+        # for i, voxel_idx in enumerate(voxel_indices):
+        #     voxel_id = voxel_idx.item()
+        #     feature_value = self._features[i][0].item()  # Accessing the first attribute of the feature
+
+        #     if feature_value == 1:
+        #         voxel_labels_update[voxel_id]["pos"] += 1
+        #     else:
+        #         voxel_labels_update[voxel_id]["neg"] += 1
+        
+        # # Apply updates in a batch
+        # for voxel_id, counts in voxel_labels_update.items():
+        #     self._voxel_labels[voxel_id]["pos"] += counts["pos"]
+        #     self._voxel_labels[voxel_id]["neg"] += counts["neg"]
             
         return
 

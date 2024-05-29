@@ -388,7 +388,6 @@ class OVMMEvaluator(PPOTrainer):
         self._print_summary(average_metrics)
 
         # create iou histogram
-        print(all_iou)
         iou_array = np.array(all_iou)
         plt.hist(iou_array, bins=10, range=(0, 1), edgecolor="black")
         # Customize the plot (optional)
@@ -397,7 +396,7 @@ class OVMMEvaluator(PPOTrainer):
         plt.title("Distribution of Point Cloud IoU")
         plt.grid(axis="y", alpha=0.5)
         # Save histogram
-        output_plot_file = os.path.join(self.results_dir, "iou_histogram.png")
+        output_plot_file = os.path.join(self.results_dir, f"iou_histogram_{num_episodes}_{agent.confidence_threshold}.png")
         plt.savefig(output_plot_file)
         plt.close()
 
@@ -501,7 +500,7 @@ class OVMMEvaluator(PPOTrainer):
             pbar.update(1)
 
         save_episode_data(
-            episode_obs_data, f"{self.results_dir}/episode_final_coord.json"
+            episode_obs_data, f"{self.results_dir}/episode_final_coord_{agent.confidence_threshold}.json"
         )  # save episode data to a JSON file
 
         self._env.close()

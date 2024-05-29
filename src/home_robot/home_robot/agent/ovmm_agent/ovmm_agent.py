@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import pdb
+# import pdb
 from datetime import datetime
 from enum import IntEnum, auto
 from typing import Any, Dict, Optional, Tuple
@@ -69,6 +69,7 @@ class OpenVocabManipAgent(ObjectNavAgent):
         self.place_policy = None
         self.semantic_sensor = None
         self.evaluation_type = evaluation_type
+        self.confidence_threshold = config.AGENT.VISION.confidence_threshold
 
         if config.GROUND_TRUTH_SEMANTICS == 1 and self.store_all_categories_in_map:
             # currently we get ground truth semantics of only the target object category and all scene receptacles from the simulator
