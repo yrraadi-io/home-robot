@@ -49,7 +49,7 @@ class CustomSparseVoxelMapAgent:
     def __init__(
         self,
         semantic_sensor: Optional[OvmmPerception] = None,
-        voxel_map: Optional[SparseVoxelMap] = SparseVoxelMap(feature_dim=2),
+        voxel_map: Optional[SparseVoxelMap] = SparseVoxelMap(feature_dim=2, resolution=0.01),
         visualize_planner=False,
         device="cpu",
         cache_dir: Optional[Union[Path, str]] = None,
@@ -69,7 +69,6 @@ class CustomSparseVoxelMapAgent:
     def step(self, obs: Observations, visualize_map=False):
         """Step the collector. Get a single observation of the world. Remove bad points, such as
         those from too far or too near the camera."""
-
         instance_image = obs.instance
         instance_classes = obs.task_observations["instance_classes"]
         instance_scores = obs.task_observations["instance_scores"]

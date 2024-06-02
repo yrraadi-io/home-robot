@@ -107,7 +107,8 @@ class VoxelizedPointcloud:
             ), "Got points outside of user-defined 3D bounds"
 
         if self._mins is None:
-            self._mins, self._maxs = pos_mins, pos_maxs
+            # self._mins, self._maxs = pos_mins, pos_maxs
+            self._mins, self._maxs = torch.tensor([-10.0, -10.0, -10.0], dtype=torch.float64), torch.tensor([10.0, 10.0, 10.0], dtype=torch.float64)
             # recompute_voxels = True
         else:
             assert (
@@ -144,7 +145,7 @@ class VoxelizedPointcloud:
             
         # Check if _positive_labels and _negative_labels are None and initialize them if they are
         if self._voxel_labels is None:
-            self._voxel_labels = defaultdict(lambda: {"pos": 0, "neg": 0})
+            self._voxel_labels = {}
             
         # Future optimization:
         # If there are no new voxels, then we could save a bit of compute time
@@ -177,31 +178,33 @@ class VoxelizedPointcloud:
         # Count positive and negative labels for each unique voxel
         pos_counts = scatter(positive_mask.float(), inverse_indices, dim=0, reduce="sum").cpu().numpy()
         neg_counts = scatter(negative_mask.float(), inverse_indices, dim=0, reduce="sum").cpu().numpy()
+        
+        # temp dict to replace main
+        voxel_labels = {}
 
         # Update the dictionary with counts
+        repeat = 0
         for i, voxel_id in enumerate(unique_voxel_ids):
             voxel_id = voxel_id.item()
-            self._voxel_labels[voxel_id]["pos"] += pos_counts[i]
-            self._voxel_labels[voxel_id]["neg"] += neg_counts[i]
-
-        # # Update Counts
-        # voxel_labels_update = defaultdict(lambda: {"pos": 0, "neg": 0})
-        
-        # # Collect updates
-        # for i, voxel_idx in enumerate(voxel_indices):
-        #     voxel_id = voxel_idx.item()
-        #     feature_value = self._features[i][0].item()  # Accessing the first attribute of the feature
-
-        #     if feature_value == 1:
-        #         voxel_labels_update[voxel_id]["pos"] += 1
-        #     else:
-        #         voxel_labels_update[voxel_id]["neg"] += 1
-        
-        # # Apply updates in a batch
-        # for voxel_id, counts in voxel_labels_update.items():
-        #     self._voxel_labels[voxel_id]["pos"] += counts["pos"]
-        #     self._voxel_labels[voxel_id]["neg"] += counts["neg"]
-            
+            if voxel_id in self._voxel_labels:
+                repeat += 1
+                voxel_labels[voxel_id] = {"pos": int(pos_counts[i]), "neg": int(neg_counts[i])}
+                voxel_labels[voxel_id]["pos"] += int(self._voxel_labels[voxel_id]["pos"])
+                voxel_labels[voxel_id]["neg"] += int(self._voxel_labels[voxel_id]["neg"])
+                # self._voxel_labels[voxel_id]["pos"] += pos_counts[i]
+                # self._voxel_labels[voxel_id]["neg"] += neg_counts[i]
+            else:
+                voxel_labels[voxel_id] = {"pos": int(pos_counts[i]), "neg": int(neg_counts[i])}
+                # self._voxel_labels[voxel_id] = {"pos": pos_counts[i], "neg": neg_counts[i]}
+                
+        self._voxel_labels = voxel_labels
+          
+        print(f"Number of repeat voxels: {repeat}")  
+        print(f"Number of Unique voxels: {len(unique_voxel_ids)}")
+        print(f"Number of pos counts: {len(pos_counts)}")
+        print(f"Number of points: {len(self._points)}")
+        print(f"Number of voxel labels: {len(self._voxel_labels)}")
+                      
         return
 
     def get_idxs(self, points: Tensor) -> Tensor:
@@ -260,6 +263,14 @@ class VoxelizedPointcloud:
             weights (Tensor): N
         """
         return self._points, self._features, self._weights, self._rgb
+    
+    def get_voxel_labels(self) -> dict:
+        """Returns the voxel labels dictionary
+
+        Returns:
+            dict: voxel_labels
+        """
+        return self._voxel_labels
 
     def clone(self):
         """

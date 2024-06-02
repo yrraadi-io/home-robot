@@ -828,6 +828,14 @@ class SparseVoxelMap(object):
         _, features, _, _ = self.voxel_pcd.get_pointcloud()
         return features
     
+    def get_voxel_labels(self) -> dict:
+        """Return the voxel labels"""
+        return self.voxel_pcd.get_voxel_labels()
+    
+    def get_voxel_idx(self, points: Tensor) -> Tensor:
+        """Return the voxel idx"""
+        return self.voxel_pcd.get_voxel_idx(points)
+    
     def get_voxelized_pointcloud(self) -> VoxelizedPointcloud:
         return self.voxel_pcd
 
@@ -837,10 +845,48 @@ class SparseVoxelMap(object):
         from pytorch3d.vis.plotly_vis import AxisArgs, plot_scene
 
         from home_robot.utils.bboxes_3d_plotly import plot_scene_with_bboxes
+        
+        # Define colors in tensor format (normalized between 0 and 1)
+        color_list = [
+            [1.0, 1.0, 0.0],  # yellow
+            [0.8, 0.6, 1.0],  # Light purple
+            [0.3, 0.7, 0.4],  # light green
+            [0.4, 0.2, 0.8],  # medium purple
+            [0.4, 0.6, 0.2],  # olive green
+            [0.5, 0.4, 0.1],  # brown
+            [0.6, 0.3, 0.2],  # reddish-brown
+            [0.7, 0.2, 0.1],  # deep red
+            [0.6, 0.2, 1.0],  # Dark purple
+            [0.1, 0.3, 0.4]   # teal
+        ]
+        color_list = torch.tensor(color_list, dtype=torch.float64)
 
         points, rgb = self.get_xyz_rgb()
         features = self.get_features()
+        voxel_indices = self.get_voxel_idx(points)
+        voxel_labels = self.get_voxel_labels()
+        
+        # # Create a mask for points to keep
+        # keep_mask = torch.zeros(len(points), dtype=torch.bool)
+        
+        # Extract the pos counts for each voxel
+        unique_voxel_ids = voxel_indices.unique()
+        
+        for voxel_id in unique_voxel_ids:
+            label = voxel_labels[voxel_id.item()]
+            pos_value = min(label["pos"], 10)
+            
+            if 1 <= pos_value <= 10:
+                color = color_list[int(pos_value) - 1]
+                rgb[voxel_indices == voxel_id] = color
+                # keep_mask[voxel_indices == voxel_id] = True
+                
+        # points = points[keep_mask]
+        # rgb = rgb[keep_mask]
+        
+        # print(len(points))
 
+        
         # Create a mask for GOAL_OBJ points
         closest_goal_obj_mask = (features[:, 0] == self.GOAL_OBJ).squeeze()
         # Separate points and colors into closest goal
@@ -856,6 +902,7 @@ class SparseVoxelMap(object):
         closest_start_rec_colors = torch.tensor([1.0, 0.498, 0.314]).repeat(
             closest_start_rec_points.shape[0], 1
         )  # Orange
+       
 
         traces = {}
 
@@ -870,15 +917,15 @@ class SparseVoxelMap(object):
         else:
             if points is not None:
                 ptc = Pointclouds(points=[points], features=[rgb])
-            if closest_goal_obj_points.numel() != 0:
-                cgobj_ptc = Pointclouds(
-                    points=[closest_goal_obj_points], features=[closest_goal_obj_colors]
-                )
-            if closest_start_rec_points.numel() != 0:
-                csrec_ptc = Pointclouds(
-                    points=[closest_start_rec_points],
-                    features=[closest_start_rec_colors],
-                )
+            # if closest_goal_obj_points.numel() != 0:
+            #     cgobj_ptc = Pointclouds(
+            #         points=[closest_goal_obj_points], features=[closest_goal_obj_colors]
+            #     )
+            # if closest_start_rec_points.numel() != 0:
+            #     csrec_ptc = Pointclouds(
+            #         points=[closest_start_rec_points],
+            #         features=[closest_start_rec_colors],
+            #     )
 
         # Combine original points and closest goal points
         points_list = []
