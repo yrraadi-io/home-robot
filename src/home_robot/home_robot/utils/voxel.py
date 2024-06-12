@@ -161,7 +161,7 @@ class VoxelizedPointcloud:
             features=all_features,
             weights=all_weights,
             rgbs=all_rgb,
-            feature_reduce="max",
+            feature_reduce="mode",
         )
         
         # Get Voxel Indices
@@ -172,38 +172,33 @@ class VoxelizedPointcloud:
         positive_mask = feature_values == 1
         negative_mask = ~positive_mask
         
+        # Score tracking
+        score_values = self._features[:, 2] * positive_mask
+        
         # Get unique voxel ids and an inverse mapping
         unique_voxel_ids, inverse_indices = voxel_indices.unique(return_inverse=True)
         
         # Count positive and negative labels for each unique voxel
         pos_counts = scatter(positive_mask.float(), inverse_indices, dim=0, reduce="sum").cpu().numpy()
         neg_counts = scatter(negative_mask.float(), inverse_indices, dim=0, reduce="sum").cpu().numpy()
+        # Count average score for each unique voxel
+        scores = scatter(score_values, inverse_indices, dim=0, reduce="max").cpu().numpy()
         
         # temp dict to replace main
         voxel_labels = {}
 
         # Update the dictionary with counts
-        repeat = 0
         for i, voxel_id in enumerate(unique_voxel_ids):
             voxel_id = voxel_id.item()
             if voxel_id in self._voxel_labels:
-                repeat += 1
-                voxel_labels[voxel_id] = {"pos": int(pos_counts[i]), "neg": int(neg_counts[i])}
+                new_score = scores[i] if scores[i] > self._voxel_labels[voxel_id]["score"] else self._voxel_labels[voxel_id]["score"]
+                voxel_labels[voxel_id] = {"pos": int(pos_counts[i]), "neg": int(neg_counts[i]), "score": new_score}
                 voxel_labels[voxel_id]["pos"] += int(self._voxel_labels[voxel_id]["pos"])
                 voxel_labels[voxel_id]["neg"] += int(self._voxel_labels[voxel_id]["neg"])
-                # self._voxel_labels[voxel_id]["pos"] += pos_counts[i]
-                # self._voxel_labels[voxel_id]["neg"] += neg_counts[i]
             else:
-                voxel_labels[voxel_id] = {"pos": int(pos_counts[i]), "neg": int(neg_counts[i])}
-                # self._voxel_labels[voxel_id] = {"pos": pos_counts[i], "neg": neg_counts[i]}
-                
+                voxel_labels[voxel_id] = {"pos": int(pos_counts[i]), "neg": int(neg_counts[i]), "score": scores[i]}
+
         self._voxel_labels = voxel_labels
-          
-        print(f"Number of repeat voxels: {repeat}")  
-        print(f"Number of Unique voxels: {len(unique_voxel_ids)}")
-        print(f"Number of pos counts: {len(pos_counts)}")
-        print(f"Number of points: {len(self._points)}")
-        print(f"Number of voxel labels: {len(self._voxel_labels)}")
                       
         return
 
@@ -380,6 +375,22 @@ def scatter_weighted_mean(
     feature_cluster = feature_cluster / weights_cluster[:, None]
     return feature_cluster
 
+def reduce_pointcloud_mode_helper(voxel_cluster: Tensor, features: Tensor, weights: Optional[Tensor] = None) -> Tuple[Tensor]:
+    # Identify unique feature values
+    unique_features = torch.unique(features)
+    # Initialize a stack to store the counts of each feature value for each voxel
+    counts_stack = []
+    # Create masks for each unique feature value and count occurrences within each voxel
+    for i, value in enumerate(unique_features):
+        value_mask = (features == value).float()
+        count = scatter(value_mask, voxel_cluster, dim=0, reduce="sum")
+        counts_stack.append(count)
+    # Stack the counts
+    counts = torch.stack(counts_stack, dim=1)
+    # Find the most frequent feature value for each voxel
+    mode_features = unique_features[torch.argmax(counts, dim=1)] # to get the actual feature value
+    
+    return mode_features
 
 def reduce_pointcloud(
     voxel_cluster: Tensor,
@@ -436,6 +447,21 @@ def reduce_pointcloud(
         feature_cluster = scatter(
             features * weights[:, None], voxel_cluster, dim=0, reduce="sum"
         )
+    elif feature_reduce == "mode":
+        # Initialize an empty list to collect mode features for each dimension
+        mode_features_list = []
+        
+        # Iterate over each feature dimension
+        for i in range(features.shape[1]):
+            # Get the feature values for the current dimension
+            feature_dim = features[:, i]
+            # Calculate the mode features for the current dimension using the helper function
+            mode_features_dim = reduce_pointcloud_mode_helper(voxel_cluster, feature_dim)
+            # Append the result to the list
+            mode_features_list.append(mode_features_dim)
+            
+        # Stack the mode features along the second dimension to form the feature_cluster
+        feature_cluster = torch.stack(mode_features_list, dim=1)
     else:
         raise NotImplementedError(f"Unknown feature reduction method {feature_reduce}")
 

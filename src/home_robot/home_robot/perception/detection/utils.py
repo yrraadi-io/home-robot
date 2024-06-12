@@ -9,7 +9,7 @@ import numpy as np
 
 
 def overlay_masks(
-    masks: np.ndarray, class_idcs: np.ndarray, shape: Tuple[int, int]
+    masks: np.ndarray, class_idcs: np.ndarray, scores: np.ndarray, shape: Tuple[int, int]
 ) -> np.ndarray:
     """Overlays the masks of objects
     Determines the order of masks based on mask size
@@ -19,11 +19,13 @@ def overlay_masks(
 
     semantic_mask = np.zeros(shape)
     instance_mask = -np.ones(shape)
+    score_map = np.zeros(shape) # detection confidence scores
     for i_mask in sorted_mask_idcs[::-1]:  # largest to smallest
         semantic_mask[masks[i_mask].astype(bool)] = class_idcs[i_mask]
         instance_mask[masks[i_mask].astype(bool)] = i_mask
+        score_map[masks[i_mask].astype(bool)] = scores[i_mask]
 
-    return semantic_mask, instance_mask
+    return semantic_mask, instance_mask, score_map
 
 
 def filter_depth(

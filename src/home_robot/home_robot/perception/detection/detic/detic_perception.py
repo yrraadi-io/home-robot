@@ -244,10 +244,11 @@ class DeticPerception(PerceptionModule):
                 [filter_depth(mask, depth, depth_threshold) for mask in masks]
             )
 
-        semantic_map, instance_map = overlay_masks(masks, class_idcs, (height, width))
+        semantic_map, instance_map, score_map = overlay_masks(masks, class_idcs, scores, (height, width))
 
         obs.semantic = semantic_map.astype(int)
         obs.instance = instance_map.astype(int)
+        obs.score_map = score_map.astype(float) # detection confidence values
         if obs.task_observations is None:
             obs.task_observations = dict()
         obs.task_observations["instance_map"] = instance_map

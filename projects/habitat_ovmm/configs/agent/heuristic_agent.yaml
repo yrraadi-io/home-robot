@@ -97,6 +97,40 @@ SKILLS:
     terminate_condition: discrete_stop
     nav_goal_seg_channels: 2
 
+  NAV_CONFIRM_OBJ:
+    type: heuristic # heuristic (default) or rl
+    checkpoint_path: data/checkpoints/ovmm_baseline_home_robot_challenge_2023_v0.2/nav_to_obj.pth
+    rl_config: projects/habitat_ovmm/configs/agent/skills/nav_to_obj_rl.yaml
+    gym_obs_keys:
+      - robot_head_depth
+      - object_embedding
+      - ovmm_nav_goal_segmentation
+      - receptacle_segmentation
+      - start_receptacle
+      - robot_start_gps
+      - robot_pos
+      - robot_start_compass
+      - robot_rot
+      - joint
+    allowed_actions:
+      # - base_velocity
+      # - rearrange_stop
+      - stop
+      - move_forward
+      - turn_left
+      - turn_right
+    arm_joint_mask: [0, 0, 0, 0, 0, 0, 0] # the arm joints that the policy can control
+    max_displacement: 0.25                # used when training the policy; could be different from the eval values
+    max_turn_degrees: 30.0
+    min_turn_degrees: 5.0
+    min_displacement: 0.1
+    sensor_height: 160
+    discrete_forward: 0.25
+    discrete_turn_degrees: 10
+    sensor_width: 120
+    terminate_condition: discrete_stop
+    nav_goal_seg_channels: 2
+
   NAV_TO_REC:
     type: heuristic # heuristic (default) or rl
     checkpoint_path: data/checkpoints/ovmm_baseline_home_robot_challenge_2023_v0.2/nav_to_rec.pth

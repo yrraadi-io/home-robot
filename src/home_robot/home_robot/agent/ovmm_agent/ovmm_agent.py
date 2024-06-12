@@ -159,15 +159,20 @@ class OpenVocabManipAgent(ObjectNavAgent):
             semantic_frame = np.concatenate(
                 [obs.rgb, obs.semantic[:, :, np.newaxis]], axis=2
             ).astype(np.uint8)
+        
+        # capturing the ground truth frame
         gt_frame = None
         if self.config.GROUND_TRUTH_SEMANTICS == 0:
             gt_frame = np.concatenate(
                 [obs.rgb, obs.gt_semantic[:, :, np.newaxis]], axis=2
             ).astype(np.uint8)
+            
+        # capturing score map for detection confidence
+        score_map = obs.score_map
 
         # setting features as the semantic_frame for voxel labelling
         obs.task_observations["features"] = np.stack(
-            [semantic_frame[:, :, 3], gt_frame[:, :, 3]], axis=-1
+            [semantic_frame[:, :, 3], gt_frame[:, :, 3], score_map], axis=-1
         )
         goal_name = obs.task_observations["goal_name"]
         info = {
@@ -208,7 +213,6 @@ class OpenVocabManipAgent(ObjectNavAgent):
             self.states = torch.tensor([Skill.CONFIRM_OBJ] * self.num_environments)
 
         self.pick_start_step = torch.tensor([0] * self.num_environments)
-        self.gaze_at_obj_start_step = torch.tensor([0] * self.num_environments)
         self.place_start_step = torch.tensor([0] * self.num_environments)
         self.gaze_at_obj_start_step = torch.tensor([0] * self.num_environments)
         self.fall_wait_start_step = torch.tensor([0] * self.num_environments)
@@ -454,6 +458,23 @@ class OpenVocabManipAgent(ObjectNavAgent):
             action = DiscreteNavigationAction.STOP
             new_state = None
         return action, info, new_state
+    
+    def _confirm_obj(
+        self, obs: Observations, info: Dict[str, Any]
+    ) -> Tuple[DiscreteNavigationAction, Any, Optional[Skill]]:
+        """Our heuristic method to confirm object detections"""
+        nav_confirm_obj_type = self.config.AGENT.SKILLS.NAV_CONFIRM_OBJ.type
+        confirm_obj_wait_steps = self.timesteps[0] - self.confirm_obj_start_step[0]
+        if confirm_obj_wait_steps < 4:
+            action = DiscreteNavigationAction.MOVE_FORWARD
+        else:
+            if nav_confirm_obj_type == "heuristic":
+                if self.verbose:
+                    print("[OVMM AGENT] step confirmation heuristic nav policy")
+                action, info, _ = self._heuristic_nav(obs, info)
+        # else:
+        #     action = DiscreteNavigationAction.STOP
+        return action, info, None
 
     def _gaze_at_obj(
         self, obs: Observations, info: Dict[str, Any]
@@ -575,17 +596,6 @@ class OpenVocabManipAgent(ObjectNavAgent):
         self, obs: Observations, info: Dict[str, Any]
     ) -> Tuple[DiscreteNavigationAction, Any, Optional[Skill]]:
         if self.timesteps[0] - self.fall_wait_start_step[0] < self._fall_wait_steps:
-            action = DiscreteNavigationAction.EMPTY_ACTION
-        else:
-            action = DiscreteNavigationAction.STOP
-        return action, info, None
-
-    def _confirm_obj(
-        self, obs: Observations, info: Dict[str, Any]
-    ) -> Tuple[DiscreteNavigationAction, Any, Optional[Skill]]:
-        """Our heuristic method to confirm object detections"""
-        confirm_obj_wait_steps = self.timesteps[0] - self.confirm_obj_start_step[0]
-        if confirm_obj_wait_steps < 1:
             action = DiscreteNavigationAction.EMPTY_ACTION
         else:
             action = DiscreteNavigationAction.STOP

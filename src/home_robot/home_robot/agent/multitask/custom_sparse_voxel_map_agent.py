@@ -49,7 +49,7 @@ class CustomSparseVoxelMapAgent:
     def __init__(
         self,
         semantic_sensor: Optional[OvmmPerception] = None,
-        voxel_map: Optional[SparseVoxelMap] = SparseVoxelMap(feature_dim=2, resolution=0.01),
+        voxel_map: Optional[SparseVoxelMap] = SparseVoxelMap(feature_dim=3, resolution=0.03),
         visualize_planner=False,
         device="cpu",
         cache_dir: Optional[Union[Path, str]] = None,
